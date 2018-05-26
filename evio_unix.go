@@ -7,6 +7,10 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"log"
+	"math/rand"
 	"net"
 	"os"
 	"runtime"
@@ -19,6 +23,9 @@ import (
 	"github.com/shabicheng/evio/internal"
 )
 
+var errClosing = errors.New("closing")
+var errCloseConns = errors.New("close conns")
+
 type conn struct {
 	fd         int               // file descriptor
 	lnidx      int               // listener index in the server lns list
@@ -26,7 +33,6 @@ type conn struct {
 	loop       *loop             // loop obj
 	out        []byte            // write buffer
 	outLock    internal.Spinlock // out lock
-	outInner   []byte            // inner buffer to write, no lock
 	sa         syscall.Sockaddr  // remote socket address
 	reuse      bool              // should reuse input buffer
 	opened     bool              // connection opened event fired
@@ -44,21 +50,44 @@ func (c *conn) LocalAddr() net.Addr        { return c.localAddr }
 func (c *conn) RemoteAddr() net.Addr       { return c.remoteAddr }
 func (c *conn) Send(data []byte) error {
 	c.outLock.Lock()
-	c.out = append(c.out, data...)
+	if c.out != nil {
+		c.out = append(c.out, data...)
+		c.outLock.Unlock()
+	}
+	c.outLock.Unlock()
+
+	n, err := syscall.Write(c.fd, data)
+	if err != nil {
+		if err == syscall.EAGAIN {
+			c.outLock.Lock()
+			c.out = append(c.out, data[n:]...)
+			c.outLock.Unlock()
+		}
+		c.loop.poll.ModReadWrite(c.fd)
+		return nil
+	}
+	// send done
+	if n == len(data) {
+		return nil
+	}
+	c.outLock.Lock()
+	c.out = append(c.out, data[n:]...)
 	c.outLock.Unlock()
 	c.loop.poll.ModReadWrite(c.fd)
+
 	return nil
 }
 
 type server struct {
-	events   Events             // user events
-	loops    []*loop            // all the loops
-	lns      []*listener        // all the listeners
-	wg       sync.WaitGroup     // loop close waitgroup
-	cond     *sync.Cond         // shutdown signaler
-	balance  LoadBalance        // load balancing method
-	accepted uintptr            // accept counter
-	tch      chan time.Duration // ticker channel
+	connectFlag bool               // if true, do not accept
+	events      Events             // user events
+	loops       []*loop            // all the loops
+	lns         []*listener        // all the listeners
+	wg          sync.WaitGroup     // loop close waitgroup
+	cond        *sync.Cond         // shutdown signaler
+	balance     LoadBalance        // load balancing method
+	accepted    uintptr            // accept counter
+	tch         chan time.Duration // ticker channel
 
 	//ticktm   time.Time      // next tick time
 }
@@ -85,7 +114,7 @@ func (s *server) signalShutdown() {
 	s.cond.L.Unlock()
 }
 
-func serve(events Events, listeners []*listener) error {
+func serve(events Events, listeners []*listener, s *server) error {
 	// figure out the correct number of loops/goroutines to use.
 	numLoops := events.NumLoops
 	if numLoops <= 0 {
@@ -95,8 +124,6 @@ func serve(events Events, listeners []*listener) error {
 			numLoops = runtime.NumCPU()
 		}
 	}
-
-	s := &server{}
 	s.events = events
 	s.lns = listeners
 	s.cond = sync.NewCond(&sync.Mutex{})
@@ -225,6 +252,8 @@ func loopRun(s *server, l *loop) {
 
 	//fmt.Println("-- loop started --", l.idx)
 	l.poll.Wait(func(fd int, note interface{}, event int) error {
+
+		log.Printf("event : %d, fd : %d \n", event, fd)
 		if fd == 0 {
 			return loopNote(s, l, note)
 		}
@@ -251,6 +280,65 @@ func loopTicker(s *server, l *loop) {
 		}
 		time.Sleep(<-s.tch)
 	}
+}
+
+func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error) {
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	addrInet4 := syscall.SockaddrInet4{Port: port}
+	copy(addrInet4.Addr[:], net.ParseIP("0.0.0.0").To4())
+	err = syscall.Connect(fd, &addrInet4)
+	if err != nil {
+		errno, ok := err.(syscall.Errno)
+		if !ok || errno != syscall.EINPROGRESS {
+			fmt.Println(err)
+			return nil, err
+		}
+	}
+
+	if err = syscall.SetNonblock(fd, true); err != nil {
+		fmt.Println("setnonblock1: ", err)
+	}
+	// add to loop
+	idx := 0
+	if len(s.loops) > 1 {
+		switch s.balance {
+		case LeastConnections:
+			minConn := 0x7FFFFFFF
+			for index, l := range s.loops {
+				count := int(atomic.LoadInt32(&l.count))
+				if count < minConn {
+					minConn = count
+					idx = index
+				}
+			}
+		case RoundRobin:
+			newCount := atomic.AddUintptr(&s.accepted, 1)
+			idx = int(newCount) % len(s.loops)
+		default:
+			idx = rand.Intn(len(s.loops))
+		}
+	}
+
+	c := &conn{
+		fd:      fd,
+		sa:      &addrInet4,
+		lnidx:   0,
+		loop:    s.loops[idx],
+		loopidx: s.loops[idx].idx,
+	}
+	c.SetContext(ctx)
+
+	s.loops[idx].fdconns[c.fd] = c
+
+	s.loops[idx].poll.AddReadWrite(fd)
+
+	//fmt.Print(idx, s.balance, "\n")
+
+	return c, err
 }
 
 func loopAccept(s *server, l *loop, fd int) error {
@@ -367,30 +455,28 @@ func loopOpened(s *server, l *loop, c *conn) error {
 
 func loopWrite(s *server, l *loop, c *conn) error {
 	c.outLock.Lock()
-	if c.out != nil {
-		if c.outInner == nil {
-			c.outInner = c.out
-		} else {
-			c.outInner = append(c.outInner, c.out...)
-		}
-		c.out = nil
+	if c.out == nil {
+		c.outLock.Unlock()
+		return nil
 	}
-	c.outLock.Unlock()
-	n, err := syscall.Write(c.fd, c.outInner)
+	n, err := syscall.Write(c.fd, c.out)
 	if err != nil {
+		c.outLock.Unlock()
 		if err == syscall.EAGAIN {
 			return nil
 		}
 		return loopCloseConn(s, l, c, err)
 	}
-	if n == len(c.outInner) {
-		c.outInner = nil
+	if n == len(c.out) {
+		c.out = nil
 	} else {
-		c.outInner = c.outInner[n:]
+		c.out = c.out[n:]
 	}
-	if len(c.outInner) == 0 && c.action == None {
+	if len(c.out) == 0 && c.action == None {
 		l.poll.ModRead(c.fd)
 	}
+	c.outLock.Unlock()
+
 	return nil
 }
 
@@ -428,10 +514,13 @@ func loopRead(s *server, l *loop, c *conn) error {
 		out, action := s.events.Data(c, in)
 		c.action = action
 		if len(out) > 0 {
-			c.outInner = append(c.outInner, out...)
+			c.outLock.Lock()
+			c.out = append(c.out, out...)
+			c.outLock.Unlock()
+			l.poll.ModReadWrite(c.fd)
 		}
 	}
-	if len(c.outInner) != 0 || c.action != None {
+	if c.action != None {
 		l.poll.ModReadWrite(c.fd)
 	}
 	return nil

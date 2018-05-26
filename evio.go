@@ -60,6 +60,8 @@ type Conn interface {
 	LocalAddr() net.Addr
 	// RemoteAddr is the connection's remote peer address.
 	RemoteAddr() net.Addr
+	// Send data
+	Send(data []byte) error
 }
 
 // LoadBalance sets the load balancing method.
@@ -181,10 +183,13 @@ func Serve(events Events, addr ...string) error {
 		}
 		lns = append(lns, &ln)
 	}
-	if stdlib {
-		return stdserve(events, lns)
-	}
-	return serve(events, lns)
+	return serve(events, lns, &server{})
+}
+
+func ConnServe(events Events) (ser *server, err error) {
+	ser = &server{}
+	go serve(events, nil, ser)
+	return ser, nil
 }
 
 // InputStream is a helper type for managing input streams from inside

@@ -7,6 +7,7 @@
 package internal
 
 import (
+	"fmt"
 	"syscall"
 )
 
@@ -58,6 +59,7 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 	events := make([]syscall.Kevent_t, 128)
 	for {
 		n, err := syscall.Kevent(p.fd, p.changes, events, nil)
+		fmt.Print("event ", "\n")
 		if err != nil && err != syscall.EINTR {
 			return err
 		}
@@ -93,6 +95,7 @@ func (p *Poll) AddRead(fd int) {
 // AddReadWrite ...
 func (p *Poll) AddReadWrite(fd int) {
 	p.changes = append(p.changes,
+
 		syscall.Kevent_t{
 			Ident: uint64(fd), Flags: syscall.EV_ADD, Filter: syscall.EVFILT_READ,
 		},
