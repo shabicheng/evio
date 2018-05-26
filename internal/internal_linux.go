@@ -49,7 +49,7 @@ func (p *Poll) Trigger(note interface{}) error {
 }
 
 // Wait ...
-func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
+func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error {
 	events := make([]syscall.EpollEvent, 64)
 	for {
 		n, err := syscall.EpollWait(p.fd, events, -1)
@@ -57,13 +57,20 @@ func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
 			return err
 		}
 		if err := p.notes.ForEach(func(note interface{}) error {
-			return iter(0, note)
+			return iter(0, note, 0)
 		}); err != nil {
 			return err
 		}
 		for i := 0; i < n; i++ {
 			if fd := int(events[i].Fd); fd != p.wfd {
-				if err := iter(fd, nil); err != nil {
+				e := PollEvent_None
+				if events[i].Events | syscall.EPOLLIN {
+					e |= PollEvent_Read
+				}
+				if events[i].Events | syscall.EPOLLOUT {
+					e |= PollEvent_Write
+				}
+				if err := iter(fd, nil, e); err != nil {
 					return err
 				}
 			} else {

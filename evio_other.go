@@ -4,7 +4,7 @@
 
 // +build !darwin,!netbsd,!freebsd,!openbsd,!dragonfly,!linux
 
-package evio
+package main
 
 import (
 	"errors"

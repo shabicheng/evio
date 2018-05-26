@@ -4,7 +4,7 @@
 
 // +build darwin netbsd freebsd openbsd dragonfly linux
 
-package evio
+package main
 
 import (
 	"net"
@@ -16,19 +16,22 @@ import (
 	"time"
 
 	reuseport "github.com/kavu/go_reuseport"
-	"github.com/tidwall/evio/internal"
+	"github.com/shabicheng/evio/internal"
 )
 
 type conn struct {
-	fd         int              // file descriptor
-	lnidx      int              // listener index in the server lns list
-	loopidx    int              // owner loop
-	out        []byte           // write buffer
-	sa         syscall.Sockaddr // remote socket address
-	reuse      bool             // should reuse input buffer
-	opened     bool             // connection opened event fired
-	action     Action           // next user action
-	ctx        interface{}      // user-defined context
+	fd         int               // file descriptor
+	lnidx      int               // listener index in the server lns list
+	loopidx    int               // owner loop
+	loop       *loop             // loop obj
+	out        []byte            // write buffer
+	outLock    internal.Spinlock // out lock
+	outInner   []byte            // inner buffer to write, no lock
+	sa         syscall.Sockaddr  // remote socket address
+	reuse      bool              // should reuse input buffer
+	opened     bool              // connection opened event fired
+	action     Action            // next user action
+	ctx        interface{}       // user-defined context
 	addrIndex  int
 	localAddr  net.Addr
 	remoteAddr net.Addr
@@ -39,6 +42,13 @@ func (c *conn) SetContext(ctx interface{}) { c.ctx = ctx }
 func (c *conn) AddrIndex() int             { return c.addrIndex }
 func (c *conn) LocalAddr() net.Addr        { return c.localAddr }
 func (c *conn) RemoteAddr() net.Addr       { return c.remoteAddr }
+func (c *conn) Send(data []byte) error {
+	c.outLock.Lock()
+	c.out = append(c.out, data...)
+	c.outLock.Unlock()
+	c.loop.poll.ModReadWrite(c.fd)
+	return nil
+}
 
 type server struct {
 	events   Events             // user events
@@ -214,7 +224,7 @@ func loopRun(s *server, l *loop) {
 	}
 
 	//fmt.Println("-- loop started --", l.idx)
-	l.poll.Wait(func(fd int, note interface{}) error {
+	l.poll.Wait(func(fd int, note interface{}, event int) error {
 		if fd == 0 {
 			return loopNote(s, l, note)
 		}
@@ -224,7 +234,7 @@ func loopRun(s *server, l *loop) {
 			return loopAccept(s, l, fd)
 		case !c.opened:
 			return loopOpened(s, l, c)
-		case len(c.out) > 0:
+		case event&internal.PollEvent_Write != 0:
 			return loopWrite(s, l, c)
 		case c.action != None:
 			return loopAction(s, l, c)
@@ -277,7 +287,13 @@ func loopAccept(s *server, l *loop, fd int) error {
 			if err := syscall.SetNonblock(nfd, true); err != nil {
 				return err
 			}
-			c := &conn{fd: nfd, sa: sa, lnidx: i}
+			c := &conn{
+				fd:      nfd,
+				sa:      sa,
+				lnidx:   i,
+				loop:    l,
+				loopidx: l.idx,
+			}
 			l.fdconns[c.fd] = c
 			l.poll.AddReadWrite(c.fd)
 			atomic.AddInt32(&l.count, 1)
@@ -350,19 +366,29 @@ func loopOpened(s *server, l *loop, c *conn) error {
 }
 
 func loopWrite(s *server, l *loop, c *conn) error {
-	n, err := syscall.Write(c.fd, c.out)
+	c.outLock.Lock()
+	if c.out != nil {
+		if c.outInner == nil {
+			c.outInner = c.out
+		} else {
+			c.outInner = append(c.outInner, c.out...)
+		}
+		c.out = nil
+	}
+	c.outLock.Unlock()
+	n, err := syscall.Write(c.fd, c.outInner)
 	if err != nil {
 		if err == syscall.EAGAIN {
 			return nil
 		}
 		return loopCloseConn(s, l, c, err)
 	}
-	if n == len(c.out) {
-		c.out = nil
+	if n == len(c.outInner) {
+		c.outInner = nil
 	} else {
-		c.out = c.out[n:]
+		c.outInner = c.outInner[n:]
 	}
-	if len(c.out) == 0 && c.action == None {
+	if len(c.outInner) == 0 && c.action == None {
 		l.poll.ModRead(c.fd)
 	}
 	return nil
@@ -402,10 +428,10 @@ func loopRead(s *server, l *loop, c *conn) error {
 		out, action := s.events.Data(c, in)
 		c.action = action
 		if len(out) > 0 {
-			c.out = append([]byte{}, out...)
+			c.outInner = append(c.outInner, out...)
 		}
 	}
-	if len(c.out) != 0 || c.action != None {
+	if len(c.outInner) != 0 || c.action != None {
 		l.poll.ModReadWrite(c.fd)
 	}
 	return nil

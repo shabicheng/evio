@@ -9,21 +9,27 @@ import (
 	"sync/atomic"
 )
 
+const (
+	PollEvent_None  = 0
+	PollEvent_Read  = 1
+	PollEvent_Write = 2
+)
+
 // this is a good candiate for a lock-free structure.
 
-type spinlock struct{ lock uintptr }
+type Spinlock struct{ lock uintptr }
 
-func (l *spinlock) Lock() {
+func (l *Spinlock) Lock() {
 	for !atomic.CompareAndSwapUintptr(&l.lock, 0, 1) {
 		runtime.Gosched()
 	}
 }
-func (l *spinlock) Unlock() {
+func (l *Spinlock) Unlock() {
 	atomic.StoreUintptr(&l.lock, 0)
 }
 
 type noteQueue struct {
-	mu    spinlock
+	mu    Spinlock
 	notes []interface{}
 }
 
