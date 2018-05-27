@@ -15,6 +15,7 @@ import (
 
 	etcd "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/shabicheng/evio/logger"
 )
 
 var etcdHost = flag.String("etcd-host", "localhost", "")
@@ -133,11 +134,11 @@ func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, de
 		}
 	}
 	if existIdx >= 0 {
-		log.Printf("update agent weight %s %s %d", addr, port, weight)
+		logger.Info("update agent weight %s %s %d", addr, port, weight)
 		ram.hackLB.Update(uint32(existIdx), uint32(weight))
 		return nil
 	}
-	log.Printf("create agent weight %s %s %d", addr, port, weight)
+	logger.Info("create agent weight %s %s %d", addr, port, weight)
 	existIdx = len(ram.hackAgents)
 	ra := &RemoteAgent{
 		addr: addr,
@@ -150,7 +151,7 @@ func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, de
 		if err == nil {
 			successCount++
 		} else {
-			log.Printf("create agent weight %s %s %d", addr, port, weight)
+			logger.Info("create agent weight %s %s %d", addr, port, weight)
 		}
 	}
 	ram.hackAgents = append(ram.hackAgents, ra)
@@ -170,7 +171,7 @@ func (ram *RemoteAgentManager) getInterfaceKey(interf string, port int) string {
 func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *HttpRequest) error {
 	// 老夫先hack一把
 	if len(ram.hackAgents) == 0 {
-		fmt.Printf("empty agents \n")
+		logger.Info("empty agents \n")
 		return nil
 	}
 	ram.hackAgents[ram.hackLB.Get()].SendRequest(agentReq, httpReq)
@@ -204,7 +205,7 @@ func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {
 	}
 	select {}
 	ka := <-ch
-	fmt.Println("ttl:", ka.TTL)
+	logger.Info("ttl:", ka.TTL)
 }
 
 func (ram *RemoteAgentManager) ServeConnectAgent() error {
@@ -216,7 +217,7 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 				ctx := resp.conn.Context().(*AgentContext)
 				obj, ok := ctx.ra.requestMap.Load(resp.RequestID)
 				if !ok {
-					log.Printf("receive remote agent's response, but no this req id %d", int(resp.RequestID))
+					logger.Info("receive remote agent's response, but no this req id %d", int(resp.RequestID))
 				}
 				httpReq := obj.(*HttpRequest)
 				httpReq.Response(resp)
@@ -257,7 +258,7 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 	rch := c.Watch(context.Background(), "foo", etcd.WithPrefix())
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
-			fmt.Printf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value))
+			logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
 
 			switch ev.Type {
 			case mvccpb.PUT:

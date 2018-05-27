@@ -103,7 +103,7 @@ The first tick fires immediately after the `Serving` events.
 
 ```go
 events.Tick = func() (delay time.Duration, action Action){
-	log.Printf("tick")
+	logger.Info("tick")
 	delay = time.Second
 	return
 }

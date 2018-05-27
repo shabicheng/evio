@@ -16,7 +16,7 @@ func LocalHttpServer(loops, port int) {
 				}
 				GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
-				//log.Printf("get \n")
+				//logger.Info("get \n")
 			}
 		}()
 	}

@@ -7,9 +7,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
+
+	"github.com/shabicheng/evio/logger"
 )
 
 type HttpContext struct {
@@ -54,24 +55,24 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 	var events Events
 	events.NumLoops = loops
 	events.Serving = func(srv Server) (action Action) {
-		log.Printf("http server started on port %d (loops: %d)", port, srv.NumLoops)
+		logger.Info("http server started on port %d (loops: %d)", port, srv.NumLoops)
 		return
 	}
 
 	events.Opened = func(c Conn) (out []byte, opts Options, action Action) {
 		c.SetContext(&HttpContext{})
 
-		//log.Printf("opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		//logger.Info("opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
 	events.Closed = func(c Conn, err error) (action Action) {
-		//log.Printf("closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
+		//logger.Info("closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
 		return
 	}
 
 	events.Data = func(c Conn, in []byte) (out []byte, action Action) {
-		//log.Printf("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
+		//logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
 		if in == nil {
 			return
 		}
@@ -88,9 +89,9 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 		// process the pipeline
 		for {
 			leftover, err, ready := parsereq(data, httpContext.req)
-			//log.Printf("result %v %v %v \n", leftover, err, ready)
+			//logger.Info("result %v %v %v \n", leftover, err, ready)
 			if err != nil {
-				log.Printf("bad thing happened\n")
+				logger.Info("bad thing happened\n")
 				out = AppendResp(out, "500 Error", "", err.Error()+"\n")
 				action = Close
 				break
@@ -101,12 +102,12 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 			}
 			err = httpContext.req.ParseFormBody()
 			if err != nil {
-				log.Printf("parse form body error \n")
+				logger.Info("parse form body error \n")
 				out = AppendResp(out, "500 Error", "", err.Error()+"\n")
 				action = Close
 				break
 			}
-			//log.Printf("insert \n")
+			//logger.Info("insert \n")
 			//AppendRequest(out, httpContext.req)
 			workerQueue <- httpContext.req
 			httpContext.req = nil

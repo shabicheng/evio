@@ -4,7 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+
+	"github.com/shabicheng/evio/logger"
 )
 
 const (
@@ -57,7 +58,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 	events := &Events{}
 	events.NumLoops = loops
 	events.Serving = func(srv Server) (action Action) {
-		log.Printf("agent server started (loops: %d)", srv.NumLoops)
+		logger.Info("agent server started (loops: %d)", srv.NumLoops)
 		return
 	}
 
@@ -67,17 +68,17 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 			c.SetContext(&AgentContext{})
 		}
 
-		log.Printf("agent opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		logger.Info("agent opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
 	events.Closed = func(c Conn, err error) (action Action) {
-		log.Printf("agent closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
+		logger.Info("agent closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
 		return
 	}
 
 	events.Data = func(c Conn, in []byte) (out []byte, action Action) {
-		//log.Printf("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
+		//logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
 		if in == nil {
 			return
 		}
@@ -93,9 +94,9 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 		data := agentContext.is.Begin(in)
 		// process the pipeline
 		for {
-			//log.Printf("data %v\n", data)
+			//logger.Info("data %v\n", data)
 			leftover, err, ready := parseAgentReq(data, agentContext.req)
-			//log.Printf("result %v %v %v \n", leftover, err, ready)
+			//logger.Info("result %v %v %v \n", leftover, err, ready)
 			if err != nil {
 				// bad thing happened
 				action = Close
@@ -105,7 +106,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 				data = leftover
 				break
 			}
-			//log.Printf("insert \n")
+			//logger.Info("insert \n")
 			//AppendRequest(out, httpContext.req)
 			workerQueue <- agentContext.req
 			agentContext.req = nil
