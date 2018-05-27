@@ -57,8 +57,12 @@ func (ra *RemoteAgent) AddInterface(interf string) {
 	ra.allInterface.Store(interf, nil)
 }
 
-func (ra *RemoteAgent) CreateConnection(wg *sync.WaitGroup) Conn {
-	return nil
+func (ra *RemoteAgent) CreateConnection(wg *sync.WaitGroup) (Conn, error) {
+	conn, err := outConnect(GlobalRemoteAgentManager.server, ra.addr, ra.port, &AgentContext{ra: ra})
+	if err == nil {
+		ra.connList = append(ra.connList, conn)
+	}
+	return conn, err
 }
 
 func (ra *RemoteAgent) SendRequest(req *AgentRequest, httpReq *HttpRequest) error {
@@ -71,10 +75,11 @@ func (ra *RemoteAgent) SendRequest(req *AgentRequest, httpReq *HttpRequest) erro
 type RemoteAgentManager struct {
 	allAgents         sync.Map // key addr, value *RemoteAgent
 	cacheInterfaceMap sync.Map // key interface, val []RemoteAgent
-	hackAgents        []RemoteAgent
-	hackLB            LoadBalancer
-	workerRespQueue   chan *AgentRequest
-	server            *server
+
+	hackAgents      []*RemoteAgent
+	hackLB          LoadBalancer
+	workerRespQueue chan *AgentRequest
+	server          *server
 }
 
 // 简单负载均衡
@@ -115,20 +120,41 @@ func (lb *LoadBalancer) Update(index, weight uint32) {
 }
 
 func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, defaultConn int, weight int) error {
-	agent, ok := ram.allAgents.Load(addr)
-	if ok {
-		ra := agent.(*RemoteAgent)
-		ra.AddInterface(interf)
+	existIdx := -1
+	for idx, agent := range ram.hackAgents {
+		if agent.addr == addr && agent.port == port {
+			existIdx = idx
+			break
+		}
+	}
+	if existIdx >= 0 {
+		log.Printf("update agent weight %s %s %d", addr, port, weight)
+		ram.hackLB.Update(uint32(existIdx), uint32(weight))
 		return nil
 	}
-	ra := RemoteAgent{
+	log.Printf("create agent weight %s %s %d", addr, port, weight)
+	existIdx = len(ram.hackAgents)
+	ra := &RemoteAgent{
 		addr: addr,
 		port: port,
 	}
 	ra.AddInterface(interf)
+	successCount := 0
 	for i := 0; i < defaultConn; i++ {
-		go ra.CreateConnection(nil)
+		_, err := ra.CreateConnection(nil)
+		if err == nil {
+			successCount++
+		} else {
+			log.Printf("create agent weight %s %s %d", addr, port, weight)
+		}
 	}
+	ram.hackAgents = append(ram.hackAgents, ra)
+
+	ram.hackLB.Update(uint32(existIdx), uint32(weight))
+	return nil
+
+	// TODO 后面的功能还没写完，再议
+
 	return nil
 }
 

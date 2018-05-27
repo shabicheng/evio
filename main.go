@@ -23,6 +23,7 @@ func main() {
 	flag.Parse()
 	if *mode == "consumer" {
 		GlobalRemoteAgentManager.ServeConnectAgent()
+		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)
 		time.Sleep(time.Second)
 		outConnect(GlobalRemoteAgentManager.server, "127.0.0.1", *providerPort, nil)
 		outConnect(GlobalRemoteAgentManager.server, "127.0.0.1", *providerPort, nil)
@@ -31,6 +32,7 @@ func main() {
 		outConnect(GlobalRemoteAgentManager.server, "127.0.0.1", *providerPort, nil)
 		LocalHttpServer(*localLoops, *localPort)
 	} else {
+		go GlobalRemoteAgentManager.RegisterInterface(GlobalInterface, *providerPort)
 		LocalAgentServer(*providerLoops, *providerPort)
 	}
 }

@@ -289,7 +289,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	}
 
 	addrInet4 := syscall.SockaddrInet4{Port: port}
-	copy(addrInet4.Addr[:], net.ParseIP("0.0.0.0").To4())
+	copy(addrInet4.Addr[:], net.ParseIP(addr).To4())
 	err = syscall.Connect(fd, &addrInet4)
 	if err != nil {
 		errno, ok := err.(syscall.Errno)
