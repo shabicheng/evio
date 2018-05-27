@@ -218,7 +218,9 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 				obj, ok := ctx.ra.requestMap.Load(resp.RequestID)
 				if !ok {
 					logger.Info("receive remote agent's response, but no this req id %d", int(resp.RequestID))
+					continue
 				}
+				logger.Info("receive remote agent's response, ", *resp)
 				httpReq := obj.(*HttpRequest)
 				httpReq.Response(resp)
 			}

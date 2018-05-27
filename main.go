@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
+	"syscall"
 	"time"
 )
 
@@ -50,6 +51,14 @@ func main() {
 		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
+		time.Sleep(time.Second)
+		c := GlobalRemoteAgentManager.hackAgents[0].connList[0].(*conn)
+
+		syscall.Close(c.fd)
+		c1 := GlobalRemoteAgentManager.hackAgents[0].connList[1].(*conn)
+
+		syscall.Close(c1.fd)
 
 		LocalHttpServer(*localLoops, *localPort)
 	} else {

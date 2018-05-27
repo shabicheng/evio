@@ -8,7 +8,7 @@ func LocalAgentServer(loops, port int) {
 		go func() {
 			for req := range workerQueue {
 				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
-				logger.Info("get agent request %v\n", *req)
+				logger.Info("get agent request id, detail %v\n", req.RequestID, *req)
 				SendAgentRequest(req.conn, 200, req.RequestID, req.Interf, req.Method, req.ParamType, []byte("Hello World.!~"))
 			}
 		}()

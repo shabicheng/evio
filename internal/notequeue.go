@@ -15,6 +15,10 @@ const (
 	PollEvent_Write = 2
 )
 
+type AddConnection struct {
+	FD int
+}
+
 // this is a good candiate for a lock-free structure.
 
 type Spinlock struct{ lock uintptr }

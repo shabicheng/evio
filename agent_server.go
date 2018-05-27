@@ -78,7 +78,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 	}
 
 	events.Data = func(c Conn, in []byte) (out []byte, action Action) {
-		//logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
+		logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
 		if in == nil {
 			return
 		}
@@ -142,11 +142,11 @@ func SendAgentRequest(conn Conn,
 	buf := out
 	binary.LittleEndian.PutUint32(buf, uint32(agentPacketMagic))
 	//fmt.Printf("magic  %v \n", out)
-	buf = out[4:]
-	binary.LittleEndian.PutUint32(buf, result)
-	buf = buf[8:]
-	binary.LittleEndian.PutUint64(buf, reqID)
 	buf = buf[4:]
+	binary.LittleEndian.PutUint32(buf, result)
+	buf = buf[4:]
+	binary.LittleEndian.PutUint64(buf, reqID)
+	buf = buf[8:]
 	binary.LittleEndian.PutUint16(buf, uint16(len(interf)))
 	buf = buf[2:]
 	copy(buf[:], interf)
@@ -161,7 +161,7 @@ func SendAgentRequest(conn Conn,
 	binary.LittleEndian.PutUint32(buf, uint32(len(param)))
 	buf = buf[4:]
 	copy(buf, param)
-	//fmt.Printf("send buffer %v \n", out)
+	fmt.Printf("send buffer %v \n", out)
 	return conn.Send(out)
 
 }

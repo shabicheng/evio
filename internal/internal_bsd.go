@@ -63,7 +63,9 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 		}
 		p.changes = p.changes[:0]
 		if err := p.notes.ForEach(func(note interface{}) error {
+
 			return iter(0, note, 0)
+
 		}); err != nil {
 			return err
 		}

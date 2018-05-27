@@ -8,6 +8,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -252,24 +253,35 @@ func loopRun(s *server, l *loop) {
 	//fmt.Println("-- loop started --", l.idx)
 	l.poll.Wait(func(fd int, note interface{}, event int) error {
 
-		//logger.Info("event : %d, fd : %d \n", event, fd)
+		//logger.Info("event  fd  idx \n", event, fd, l.idx)
 		if fd == 0 {
+			addC, ok := note.(*internal.AddConnection)
+			if ok {
+				l.poll.AddReadWrite(addC.FD)
+				return nil
+			}
 			return loopNote(s, l, note)
 		}
 		c := l.fdconns[fd]
 		switch {
 		case c == nil:
+			//logger.Info("loopAccept  fd  idx \n", event, fd, l.idx)
 			return loopAccept(s, l, fd)
 		case !c.opened:
+			//logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
 			return loopOpened(s, l, c)
 		case event&internal.PollEvent_Write != 0:
+			//logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
 			return loopWrite(s, l, c)
 		case c.action != None:
+			//logger.Info("loopAction  fd  idx \n", event, fd, l.idx)
 			return loopAction(s, l, c)
 		default:
+			//logger.Info("loopRead  fd  idx \n", event, fd, l.idx)
 			return loopRead(s, l, c)
 		}
 	})
+	fmt.Println("-- loop done --", l.idx)
 }
 
 func loopTicker(s *server, l *loop) {
@@ -322,20 +334,23 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 		}
 	}
 
+	l := s.loops[idx]
 	c := &conn{
 		fd:      fd,
 		sa:      &addrInet4,
-		lnidx:   0,
-		loop:    s.loops[idx],
-		loopidx: s.loops[idx].idx,
+		lnidx:   -1,
+		loop:    l,
+		loopidx: l.idx,
 	}
 	c.SetContext(ctx)
 
-	s.loops[idx].fdconns[c.fd] = c
+	atomic.AddInt32(&l.count, 1)
+	l.fdconns[fd] = c
 
-	s.loops[idx].poll.AddReadWrite(fd)
+	loopOpened(s, l, c)
+	l.poll.Trigger(&internal.AddConnection{FD: fd})
 
-	//fmt.Print(idx, s.balance, "\n")
+	//fmt.Print(idx, s.balance, "fd", fd, "\n")
 
 	return c, err
 }
@@ -430,8 +445,11 @@ func loopUDPRead(s *server, l *loop, lnidx, fd int) error {
 
 func loopOpened(s *server, l *loop, c *conn) error {
 	c.opened = true
-	c.addrIndex = c.lnidx
-	c.localAddr = s.lns[c.lnidx].lnaddr
+	if c.lnidx >= 0 {
+		c.addrIndex = c.lnidx
+		c.localAddr = s.lns[c.lnidx].lnaddr
+	}
+
 	c.remoteAddr = internal.SockaddrToAddr(c.sa)
 	if s.events.Opened != nil {
 		out, opts, action := s.events.Opened(c)
@@ -455,6 +473,7 @@ func loopOpened(s *server, l *loop, c *conn) error {
 func loopWrite(s *server, l *loop, c *conn) error {
 	c.outLock.Lock()
 	if c.out == nil {
+		l.poll.ModRead(c.fd)
 		c.outLock.Unlock()
 		return nil
 	}
