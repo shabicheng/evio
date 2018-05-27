@@ -202,7 +202,7 @@ func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {
 	if kaerr != nil {
 		log.Fatal(kaerr)
 	}
-
+	select {}
 	ka := <-ch
 	fmt.Println("ttl:", ka.TTL)
 }

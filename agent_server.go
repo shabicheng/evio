@@ -93,6 +93,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 		data := agentContext.is.Begin(in)
 		// process the pipeline
 		for {
+			//log.Printf("data %v\n", data)
 			leftover, err, ready := parseAgentReq(data, agentContext.req)
 			//log.Printf("result %v %v %v \n", leftover, err, ready)
 			if err != nil {
@@ -136,29 +137,31 @@ func SendAgentRequest(conn Conn,
 	method string,
 	paramType ParamType,
 	param []byte) (err error) {
-	out := make([]byte, 0, 26+len(interf)+len(method)+len(param))
-
-	binary.LittleEndian.PutUint32(out, uint32(agentPacketMagic))
-	buf := out[4:]
-	binary.LittleEndian.PutUint32(buf, result)
-	buf = out[8:]
-	binary.LittleEndian.PutUint64(buf, reqID)
+	out := make([]byte, 26+len(interf)+len(method)+len(param), 26+len(interf)+len(method)+len(param))
+	buf := out
+	binary.LittleEndian.PutUint32(buf, uint32(agentPacketMagic))
+	//fmt.Printf("magic  %v \n", out)
 	buf = out[4:]
+	binary.LittleEndian.PutUint32(buf, result)
+	buf = buf[8:]
+	binary.LittleEndian.PutUint64(buf, reqID)
+	buf = buf[4:]
 	binary.LittleEndian.PutUint16(buf, uint16(len(interf)))
-	buf = out[2:]
-	buf = append(buf, interf...)
-	buf = out[len(interf):]
+	buf = buf[2:]
+	copy(buf[:], interf)
+	buf = buf[len(interf):]
 	binary.LittleEndian.PutUint16(buf, uint16(len(method)))
-	buf = out[2:]
-	buf = append(buf, method...)
-	buf = out[len(method):]
+	buf = buf[2:]
+	copy(buf, method)
+	buf = buf[len(method):]
 	binary.LittleEndian.PutUint16(buf, uint16(paramType))
-	buf = out[2:]
+	buf = buf[2:]
 
 	binary.LittleEndian.PutUint32(buf, uint32(len(param)))
-	buf = out[4:]
-	buf = append(buf, param...)
-	return conn.Send(buf)
+	buf = buf[4:]
+	copy(buf, param)
+	//fmt.Printf("send buffer %v \n", out)
+	return conn.Send(out)
 
 }
 
@@ -178,7 +181,8 @@ func parseAgentReq(data []byte, req *AgentRequest) (body []byte, err error, read
 			req.Result = binary.LittleEndian.Uint32(body[4:])
 			req.RequestID = binary.LittleEndian.Uint64(body[8:])
 			req.phase = agentPhase_Interface
-			body = body[8:]
+			body = body[16:]
+			//fmt.Printf("phase %v, body %v\n", req.phase, body)
 		case agentPhase_Interface:
 			if len(body) < 2 {
 				return body, err, false
@@ -190,6 +194,8 @@ func parseAgentReq(data []byte, req *AgentRequest) (body []byte, err error, read
 			req.Interf = string(body[2:(2 + interfaceLen)])
 			body = body[2+interfaceLen:]
 			req.phase = agentPhase_Method
+
+			//fmt.Printf("phase %v, body %v\n", req.phase, body)
 		case agentPhase_Method:
 			if len(body) < 2 {
 				return body, err, false
@@ -201,17 +207,19 @@ func parseAgentReq(data []byte, req *AgentRequest) (body []byte, err error, read
 			req.Method = string(body[2:(2 + methodLen)])
 			body = body[2+methodLen:]
 			req.phase = agentPhase_Param
+			//fmt.Printf("phase %v, body %v\n", req.phase, body)
 		case agentPhase_Param:
 			if len(body) < 6 {
 				return body, err, false
 			}
 			req.ParamType = ParamType(binary.LittleEndian.Uint16(body))
-			paramLen := binary.LittleEndian.Uint16(body[2:])
+			paramLen := binary.LittleEndian.Uint32(body[2:])
 			if len(body)-6 < int(paramLen) {
 				return body, err, false
 			}
 			req.Param = body[6:(6 + paramLen)]
 			body = body[6+paramLen:]
+			//fmt.Printf("phase %v, body %v\n", req.phase, body)
 			return body, nil, true
 		}
 	}

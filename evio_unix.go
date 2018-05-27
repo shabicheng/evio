@@ -9,7 +9,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -253,7 +252,7 @@ func loopRun(s *server, l *loop) {
 	//fmt.Println("-- loop started --", l.idx)
 	l.poll.Wait(func(fd int, note interface{}, event int) error {
 
-		log.Printf("event : %d, fd : %d \n", event, fd)
+		//log.Printf("event : %d, fd : %d \n", event, fd)
 		if fd == 0 {
 			return loopNote(s, l, note)
 		}

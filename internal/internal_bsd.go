@@ -7,7 +7,6 @@
 package internal
 
 import (
-	"fmt"
 	"syscall"
 )
 
@@ -59,7 +58,6 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 	events := make([]syscall.Kevent_t, 128)
 	for {
 		n, err := syscall.Kevent(p.fd, p.changes, events, nil)
-		fmt.Print("event ", "\n")
 		if err != nil && err != syscall.EINTR {
 			return err
 		}

@@ -25,6 +25,32 @@ func main() {
 		GlobalRemoteAgentManager.ServeConnectAgent()
 		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)
 		time.Sleep(time.Second)
+		req := &HttpRequest{
+			callMethod: "12345",
+			parameter:  "xxxx",
+		}
+
+		agentReq := &AgentRequest{
+			Interf:    GlobalInterface,
+			Method:    req.callMethod,
+			ParamType: ParamType_String,
+			Param:     []byte(req.parameter),
+		}
+
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
+		time.Sleep(time.Second)
+
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
 		LocalHttpServer(*localLoops, *localPort)
 	} else {
 		go GlobalRemoteAgentManager.RegisterInterface(GlobalInterface, *providerPort)
