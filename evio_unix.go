@@ -266,19 +266,19 @@ func loopRun(s *server, l *loop) {
 		c := l.fdconns[fd]
 		switch {
 		case c == nil:
-			//logger.Info("loopAccept  fd  idx \n", event, fd, l.idx)
+			logger.Info("loopAccept  fd  idx \n", event, fd, l.idx)
 			return loopAccept(s, l, fd)
 		case !c.opened:
-			//logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
+			logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
 			return loopOpened(s, l, c)
 		case event&internal.PollEvent_Write != 0:
-			//logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
+			logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
 			return loopWrite(s, l, c)
 		case c.action != None:
-			//logger.Info("loopAction  fd  idx \n", event, fd, l.idx)
+			logger.Info("loopAction  fd  idx \n", event, fd, l.idx)
 			return loopAction(s, l, c)
 		default:
-			//logger.Info("loopRead  fd  idx \n", event, fd, l.idx)
+			logger.Info("loopRead  fd  idx \n", event, fd, l.idx)
 			return loopRead(s, l, c)
 		}
 	})
