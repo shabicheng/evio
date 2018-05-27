@@ -313,7 +313,6 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	if err = syscall.SetNonblock(fd, true); err != nil {
 		logger.Error("setnonblock1", err)
 	}
-	time.Sleep(time.Second * 5)
 	// add to loop
 	idx := 0
 	if len(s.loops) > 1 {
@@ -348,7 +347,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 
 	atomic.AddInt32(&l.count, 1)
 	l.fdconns[fd] = c
-	fmt.Print(idx, s.balance, "fd", fd, "\n")
+	//fmt.Print(idx, s.balance, "fd", fd, "\n")
 	loopOpened(s, l, c)
 	l.poll.Trigger(&internal.AddConnection{FD: fd})
 

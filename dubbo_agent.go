@@ -22,8 +22,7 @@ type LocalDubboAgent struct {
 	server          *server
 	workerRespQueue chan *DubboReponse
 
-	lb       LoadBalancer
-	connList []Conn
+	connManager ConnectionManager
 }
 
 type DubboReponse dubboagent.Response
@@ -36,7 +35,7 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 	events := &Events{}
 	events.NumLoops = loops
 	events.Serving = func(srv Server) (action Action) {
-		logger.Info("agent server started (loops: %d)", srv.NumLoops)
+		logger.Info("dubbo agent server started (loops: %d)", srv.NumLoops)
 		return
 	}
 
@@ -46,12 +45,16 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 			c.SetContext(&DubboContext{})
 		}
 
-		logger.Info("agent opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		logger.Info("dubbo agent opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
+	// producer 向dubbo 发起的链接，在close的时候需要销毁
+	// 删除dubbo的连接
 	events.Closed = func(c Conn, err error) (action Action) {
-		logger.Info("agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
+		logger.Info("dubbo agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
+		GlobalLocalDubboAgent.connManager.DeleteConnection(c)
+		GlobalLocalDubboAgent.GetConnection()
 		return
 	}
 
@@ -118,25 +121,25 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 }
 
 func (lda *LocalDubboAgent) GetConnection() Conn {
-	connCount := len(lda.connList)
+	resultConn, connCount := lda.connManager.GetConnection()
 	createConnCount := *dubboConnCount - connCount
 
-	makeConn := func() error {
+	makeConn := func() (Conn, error) {
 		conn, err := outConnect(lda.server, *dubboHost, *dubboPort, &DubboContext{})
 		if err != nil {
 			logger.Warning("CONNECT_DUBBO_ERROR", err, *dubboPort, *dubboPort)
-			return err
+			return nil, err
 		}
 
-		lda.lb.Update(uint32(len(lda.connList)), uint32(1000))
-		lda.connList = append(lda.connList, conn)
-		return nil
+		lda.connManager.AddConnection(conn)
+		return conn, nil
 	}
 
 	if connCount == 0 {
 		for true {
-			err := makeConn()
+			conn, err := makeConn()
 			if err == nil {
+				resultConn = conn
 				break
 			}
 			time.Sleep(100 * time.Millisecond)
@@ -145,10 +148,9 @@ func (lda *LocalDubboAgent) GetConnection() Conn {
 	}
 
 	for createConnCount > 0 {
-		makeConn()
+		go makeConn()
 		createConnCount--
 	}
 
-	idx := lda.lb.Get()
-	return lda.connList[idx]
+	return resultConn.(Conn)
 }

@@ -27,7 +27,7 @@ var GlobalInterface = "/dubbomesh/com.alibaba.dubbo.performance.demo.provider.IH
 var GlobalRemoteAgentManager RemoteAgentManager
 
 type RemoteAgent struct {
-	connList      []Conn
+	connManager   ConnectionManager
 	lastSendIndex int
 	sendCount     uint64
 	addr          string
@@ -35,6 +35,7 @@ type RemoteAgent struct {
 	allInterface  sync.Map
 	requestMap    sync.Map // key requestID, val Request
 	reqID         uint64
+	defaultConn   int
 }
 
 func (ra *RemoteAgent) processResponse(respQueue chan *AgentRequest) error {
@@ -51,12 +52,17 @@ func (ra *RemoteAgent) processResponse(respQueue chan *AgentRequest) error {
 }
 
 func (ra *RemoteAgent) GetConnection() Conn {
-	newCount := atomic.AddUint64(&ra.sendCount, 1)
-	connLen := len(ra.connList)
-	if connLen == 0 {
-		return nil
+	connInterf, connCount := ra.connManager.GetConnection()
+	createConnCount := ra.defaultConn - connCount
+	for createConnCount > 0 {
+		go ra.CreateConnection(nil)
+		createConnCount--
 	}
-	return ra.connList[int(newCount)%connLen]
+	if connInterf != nil {
+		return connInterf.(Conn)
+	}
+	conn, _ := ra.CreateConnection(nil)
+	return conn
 }
 
 func (ra *RemoteAgent) AddInterface(interf string) {
@@ -66,7 +72,7 @@ func (ra *RemoteAgent) AddInterface(interf string) {
 func (ra *RemoteAgent) CreateConnection(wg *sync.WaitGroup) (Conn, error) {
 	conn, err := outConnect(GlobalRemoteAgentManager.server, ra.addr, ra.port, &AgentContext{ra: ra})
 	if err == nil {
-		ra.connList = append(ra.connList, conn)
+		ra.connManager.AddConnection(conn)
 	}
 	return conn, err
 }
@@ -82,52 +88,19 @@ type RemoteAgentManager struct {
 	allAgents         sync.Map // key addr, value *RemoteAgent
 	cacheInterfaceMap sync.Map // key interface, val []RemoteAgent
 
-	hackAgents      []*RemoteAgent
-	hackLB          LoadBalancer
+	//hackAgents      []*RemoteAgent
+	//hackLB          LoadBalancer
+	hackManager     ConnectionManager
 	workerRespQueue chan *AgentRequest
 	server          *server
 }
 
-// 简单负载均衡
-type LoadBalancer struct {
-	weight    []uint32
-	minWeight []uint32
-	nowBase   uint32
-
-	lastCount     uint32
-	lastIndex     uint32
-	lastBaseCount uint32
-}
-
-func (lb *LoadBalancer) Get() int {
-	newCount := atomic.AddUint32(&lb.lastCount, 1)
-	if newCount-atomic.LoadUint32(&lb.lastBaseCount) >
-		lb.minWeight[atomic.LoadUint32(&lb.lastIndex)%uint32(len(lb.weight))] {
-		newIndex := atomic.AddUint32(&lb.lastIndex, 1)
-		atomic.StoreUint32(&lb.lastBaseCount, newCount)
-		return int(newIndex % uint32(len(lb.weight)))
-	}
-	return int(atomic.LoadUint32(&lb.lastIndex) % uint32(len(lb.weight)))
-}
-
-func (lb *LoadBalancer) Update(index, weight uint32) {
-	if len(lb.weight) <= int(index) {
-		lb.weight = append(lb.weight, weight)
-		if index == 0 {
-			lb.minWeight = append(lb.minWeight, weight/100)
-			lb.nowBase = 100
-		} else {
-			lb.minWeight = append(lb.minWeight, weight/lb.nowBase)
-		}
-	} else {
-		atomic.StoreUint32(&lb.weight[index], weight)
-		atomic.StoreUint32(&lb.minWeight[index], weight/lb.nowBase)
-	}
-}
-
 func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, defaultConn int, weight int) error {
 	existIdx := -1
-	for idx, agent := range ram.hackAgents {
+	allConns := ram.hackManager.GetAllConnections()
+	for idx, conn := range allConns {
+		//fmt.Print(idx, " ", conn, "\n")
+		agent := conn.(*RemoteAgent)
 		if agent.addr == addr && agent.port == port {
 			existIdx = idx
 			break
@@ -135,14 +108,15 @@ func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, de
 	}
 	if existIdx >= 0 {
 		logger.Info("update agent weight %s %s %d", addr, port, weight)
-		ram.hackLB.Update(uint32(existIdx), uint32(weight))
+		ram.hackManager.UpdateLB(uint32(existIdx), uint32(weight))
 		return nil
 	}
+	existIdx = len(allConns)
 	logger.Info("create agent weight %s %s %d", addr, port, weight)
-	existIdx = len(ram.hackAgents)
 	ra := &RemoteAgent{
-		addr: addr,
-		port: port,
+		addr:        addr,
+		port:        port,
+		defaultConn: defaultConn,
 	}
 	ra.AddInterface(interf)
 	successCount := 0
@@ -154,9 +128,9 @@ func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, de
 			logger.Info("create agent weight %s %s %d", addr, port, weight)
 		}
 	}
-	ram.hackAgents = append(ram.hackAgents, ra)
+	ram.hackManager.AddConnection(ra)
 
-	ram.hackLB.Update(uint32(existIdx), uint32(weight))
+	ram.hackManager.UpdateLB(uint32(existIdx), uint32(weight))
 	return nil
 
 	// TODO 后面的功能还没写完，再议
@@ -170,11 +144,12 @@ func (ram *RemoteAgentManager) getInterfaceKey(interf string, port int) string {
 
 func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *HttpRequest) error {
 	// 老夫先hack一把
-	if len(ram.hackAgents) == 0 {
+	conn, connCount := ram.hackManager.GetConnection()
+	if connCount == 0 {
 		logger.Info("empty agents \n")
 		return nil
 	}
-	ram.hackAgents[ram.hackLB.Get()].SendRequest(agentReq, httpReq)
+	conn.(*RemoteAgent).SendRequest(agentReq, httpReq)
 	return nil
 }
 
@@ -208,6 +183,12 @@ func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {
 	logger.Info("ttl:", ka.TTL)
 }
 
+func (ram *RemoteAgentManager) DeleteRemoteAgentConnection(conn Conn) {
+	agentCtx := conn.Context().(*AgentContext)
+	agentCtx.ra.connManager.DeleteConnection(conn)
+	agentCtx.ra.CreateConnection(nil)
+}
+
 func (ram *RemoteAgentManager) ServeConnectAgent() error {
 	ram.workerRespQueue = make(chan *AgentRequest, 1000)
 
@@ -228,6 +209,10 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 	}
 
 	events := CreateAgentEvent(4, ram.workerRespQueue)
+	events.Closed = func(c Conn, err error) (action Action) {
+		ram.DeleteRemoteAgentConnection(c)
+		return
+	}
 	var err error
 	ram.server, err = ConnServe(*events)
 	return err

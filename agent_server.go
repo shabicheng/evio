@@ -70,6 +70,9 @@ type AgentRequest struct {
 	Param      []byte
 }
 
+// 主动连接的Server需要特殊处理close 时间
+// 这边需要处理的是agent 主动连接其他agent的连接
+// 也就是consumer agent -> producer agent
 func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 	events := &Events{}
 	events.NumLoops = loops
@@ -139,6 +142,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 	return events
 }
 
+// provider agent server, 提供接口让其他人连接，只维护简单connection
 func ServeListenAgent(loops int, port int, workerQueue chan *AgentRequest) error {
 	events := CreateAgentEvent(loops, workerQueue)
 	// We at least want the single http address.

@@ -53,6 +53,7 @@ func (hq *HttpRequest) Response(req *AgentRequest) error {
 	return hq.conn.Send(out)
 }
 
+// 向consumer服务
 func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 
 	var events Events
@@ -69,6 +70,7 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 		return
 	}
 
+	// 被动监听的 close 不用管
 	events.Closed = func(c Conn, err error) (action Action) {
 		//logger.Info("closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
 		return
