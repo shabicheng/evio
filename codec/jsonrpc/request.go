@@ -5,9 +5,10 @@ import (
 )
 
 import (
-	"mesh-agent.go/codec"
 	"bytes"
 	"encoding/json"
+
+	"github.com/shabicheng/evio/codec"
 )
 
 /**
@@ -37,7 +38,7 @@ const (
 	DUBBO_VERSION = "2.5.4"
 )
 
-func packRequest(m *codec.Message) ([]byte, error) {
+func PackRequest(m *codec.Message) ([]byte, error) {
 	var (
 		byteArray   []byte
 		encoder     *Encoder

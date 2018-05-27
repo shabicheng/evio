@@ -34,6 +34,22 @@ const (
 	ParamType_Obj
 )
 
+func (t ParamType) String() string {
+	switch t {
+	case ParamType_Int8:
+	case ParamType_Int16:
+	case ParamType_Int32:
+	case ParamType_Uint8:
+	case ParamType_Uint16:
+	case ParamType_Uint32:
+	case ParamType_String:
+		return "Ljava/lang/String"
+	case ParamType_Obj:
+
+	}
+	return "int"
+}
+
 type AgentContext struct {
 	ra  *RemoteAgent
 	is  InputStream

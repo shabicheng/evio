@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
-	"syscall"
 	"time"
 )
 
@@ -25,44 +24,38 @@ func main() {
 	if *mode == "consumer" {
 		GlobalRemoteAgentManager.ServeConnectAgent()
 		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)
+
+		//time.Sleep(time.Second)
+		// req := &HttpRequest{
+		// 	callMethod: "12345",
+		// 	parameter:  "xxxx",
+		// }
+
+		// agentReq := &AgentRequest{
+		// 	Interf:    GlobalInterface,
+		// 	Method:    req.callMethod,
+		// 	ParamType: ParamType_String,
+		// 	Param:     []byte(req.parameter),
+		// }
+
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
+		// time.Sleep(time.Second)
+
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+
+		GlobalLocalDubboAgent.ServeConnectDubbo(4)
 		time.Sleep(time.Second)
-		req := &HttpRequest{
-			callMethod: "12345",
-			parameter:  "xxxx",
-		}
-
-		agentReq := &AgentRequest{
-			Interf:    GlobalInterface,
-			Method:    req.callMethod,
-			ParamType: ParamType_String,
-			Param:     []byte(req.parameter),
-		}
-
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-
-		time.Sleep(time.Second)
-
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-
-		time.Sleep(time.Second)
-		c := GlobalRemoteAgentManager.hackAgents[0].connList[0].(*conn)
-
-		syscall.Close(c.fd)
-		c1 := GlobalRemoteAgentManager.hackAgents[0].connList[1].(*conn)
-
-		syscall.Close(c1.fd)
 
 		LocalHttpServer(*localLoops, *localPort)
 	} else {
 		go GlobalRemoteAgentManager.RegisterInterface(GlobalInterface, *providerPort)
+
 		LocalAgentServer(*providerLoops, *providerPort)
 	}
 }

@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"testing"
+
 	"mesh-agent.go/codec"
 )
 
@@ -25,11 +26,11 @@ func TestEncodeRequest(t *testing.T) {
 		},
 	}
 
-	data, e := packRequest(message)
+	data, e := PackRequest(message)
 
 	if e != nil {
 		// do something
 	}
 
-	unpackResponse(data, &Response{})
+	UnpackResponse(data, &Response{})
 }

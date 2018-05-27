@@ -5,7 +5,7 @@ import (
 )
 
 import (
-	"mesh-agent.go/codec"
+	"github.com/shabicheng/evio/codec"
 )
 
 const (
@@ -26,14 +26,14 @@ const (
 
 type Response struct {
 	ID   int64
-	data []byte
+	Data []byte
 }
 
-func unpackResponse(buf []byte, res *Response) error {
+func UnpackResponse(buf []byte) ([]byte, *Response, error) {
 	readable := len(buf)
 
 	if readable < HEADER_LENGTH {
-		return codec.ErrHeaderNotEnough
+		return buf, nil, codec.ErrHeaderNotEnough
 	}
 
 	var err error
@@ -46,14 +46,14 @@ func unpackResponse(buf []byte, res *Response) error {
 	tt := dLen + HEADER_LENGTH
 
 	if int32(readable) < tt {
-		return codec.ErrHeaderNotEnough
+		return buf, nil, codec.ErrHeaderNotEnough
 	}
 
+	res := &Response{}
 	data := buf[16:]
-	subArray := data[HEADER_LENGTH+2 : len(data)-1]
 
 	res.ID = int64(binary.BigEndian.Uint64(buf[4:12]))
-	res.data = subArray
+	res.Data = data[HEADER_LENGTH+1 : tt-1]
 
-	return err
+	return buf[tt:], nil, err
 }
