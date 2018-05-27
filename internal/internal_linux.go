@@ -5,6 +5,7 @@
 package internal
 
 import (
+	"log"
 	"syscall"
 )
 
@@ -20,13 +21,13 @@ func OpenPoll() *Poll {
 	l := new(Poll)
 	p, err := syscall.EpollCreate1(0)
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	l.fd = p
 	r0, _, e0 := syscall.Syscall(syscall.SYS_EVENTFD, 0, 0, 0)
 	if e0 != 0 {
 		syscall.Close(p)
-		panic(err)
+		log.Println(err)
 	}
 	l.wfd = int(r0)
 	l.AddRead(l.wfd)
@@ -98,7 +99,7 @@ func (p *Poll) AddRead(fd int) {
 			Events: syscall.EPOLLIN,
 		},
 	); err != nil {
-		panic(err)
+		log.Println(err)
 	}
 }
 
@@ -109,7 +110,7 @@ func (p *Poll) ModRead(fd int) {
 			Events: syscall.EPOLLIN,
 		},
 	); err != nil {
-		panic(err)
+		log.Println(err)
 	}
 }
 
@@ -120,7 +121,7 @@ func (p *Poll) ModReadWrite(fd int) {
 			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
 		},
 	); err != nil {
-		panic(err)
+		log.Println(err)
 	}
 }
 
@@ -131,6 +132,6 @@ func (p *Poll) ModDetach(fd int) {
 			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
 		},
 	); err != nil {
-		panic(err)
+		log.Println(err)
 	}
 }
