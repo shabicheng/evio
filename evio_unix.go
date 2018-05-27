@@ -8,7 +8,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -19,8 +18,9 @@ import (
 	"syscall"
 	"time"
 
-	reuseport "github.com/kavu/go_reuseport"
+	"github.com/kavu/go_reuseport"
 	"github.com/shabicheng/evio/internal"
+	"github.com/shabicheng/evio/logger"
 )
 
 var errClosing = errors.New("closing")
@@ -285,7 +285,7 @@ func loopTicker(s *server, l *loop) {
 func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error) {
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("evio", err)
 	}
 
 	addrInet4 := syscall.SockaddrInet4{Port: port}
@@ -294,13 +294,13 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	if err != nil {
 		errno, ok := err.(syscall.Errno)
 		if !ok || errno != syscall.EINPROGRESS {
-			fmt.Println(err)
+			logger.Error("evio", err)
 			return nil, err
 		}
 	}
 
 	if err = syscall.SetNonblock(fd, true); err != nil {
-		fmt.Println("setnonblock1: ", err)
+		logger.Error("setnonblock1", err)
 	}
 	// add to loop
 	idx := 0

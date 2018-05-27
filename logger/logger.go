@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	seelog "github.com/cihub/seelog"
+	"github.com/cihub/seelog"
 	"github.com/shabicheng/evio/util"
 )
 
