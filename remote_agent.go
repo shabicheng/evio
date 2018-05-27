@@ -105,9 +105,9 @@ func (lb *LoadBalancer) Get() int {
 		lb.minWeight[atomic.LoadUint32(&lb.lastIndex)%uint32(len(lb.weight))] {
 		newIndex := atomic.AddUint32(&lb.lastIndex, 1)
 		atomic.StoreUint32(&lb.lastBaseCount, newCount)
-		return int(newIndex)
+		return int(newIndex % uint32(len(lb.weight)))
 	}
-	return int(atomic.LoadUint32(&lb.lastIndex))
+	return int(atomic.LoadUint32(&lb.lastIndex) % uint32(len(lb.weight)))
 }
 
 func (lb *LoadBalancer) Update(index, weight uint32) {
@@ -220,7 +220,7 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 					logger.Info("receive remote agent's response, but no this req id %d", int(resp.RequestID))
 					continue
 				}
-				logger.Info("receive remote agent's response, ", *resp)
+				//logger.Info("receive remote agent's response, ", string(resp.Param))
 				httpReq := obj.(*HttpRequest)
 				httpReq.Response(resp)
 			}
@@ -260,7 +260,7 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 	rch := c.Watch(context.Background(), "foo", etcd.WithPrefix())
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
-			logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
+			//logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
 
 			switch ev.Type {
 			case mvccpb.PUT:

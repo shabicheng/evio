@@ -17,22 +17,28 @@ var providerLoops = flag.Int("provider-loop", 4, "provide loop count")
 
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+
 	flag.Parse()
+	go func() {
+		if *mode == "consumer" {
+			log.Println(http.ListenAndServe("localhost:8088", nil))
+		} else {
+			log.Println(http.ListenAndServe("localhost:8089", nil))
+		}
+	}()
 	if *mode == "consumer" {
 		GlobalRemoteAgentManager.ServeConnectAgent()
 		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)
 
-		//time.Sleep(time.Second)
+		// time.Sleep(time.Second)
 		// req := &HttpRequest{
-		// 	callMethod: "12345",
-		// 	parameter:  "xxxx",
+		// 	callMethod: "hash",
+		// 	parameter:  "xxxxxxxxxxx",
 		// }
 
 		// agentReq := &AgentRequest{
-		// 	Interf:    GlobalInterface,
+		// 	Interf:    "com.alibaba.dubbo.performance.demo.provider.IHelloService",
+		//              com.alibaba.dubbo.performance.demo.provider.IHelloService
 		// 	Method:    req.callMethod,
 		// 	ParamType: ParamType_String,
 		// 	Param:     []byte(req.parameter),
@@ -49,11 +55,13 @@ func main() {
 		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 
-		GlobalLocalDubboAgent.ServeConnectDubbo(4)
 		time.Sleep(time.Second)
 
 		LocalHttpServer(*localLoops, *localPort)
 	} else {
+
+		GlobalLocalDubboAgent.ServeConnectDubbo(4)
+		time.Sleep(time.Second)
 		go GlobalRemoteAgentManager.RegisterInterface(GlobalInterface, *providerPort)
 
 		LocalAgentServer(*providerLoops, *providerPort)

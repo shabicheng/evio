@@ -3,7 +3,6 @@ package main
 import (
 	dubbocodec "github.com/shabicheng/evio/codec"
 	dubbojson "github.com/shabicheng/evio/codec/jsonrpc"
-	"github.com/shabicheng/evio/logger"
 )
 
 func LocalAgentServer(loops, port int) {
@@ -12,7 +11,7 @@ func LocalAgentServer(loops, port int) {
 		go func() {
 			for req := range workerQueue {
 				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
-				logger.Info("get agent request id, detail %v\n", req.RequestID, *req)
+				//logger.Info("get agent request id, detail %v", req.RequestID, *req)
 				//SendAgentRequest(req.conn, 200, req.RequestID, req.Interf, req.Method, req.ParamType, []byte("Hello World.!~"))
 
 				attachments := make(map[string]string)
@@ -20,7 +19,6 @@ func LocalAgentServer(loops, port int) {
 				// send to dubbo agent
 				message := &dubbocodec.Message{
 					ID:        int64(req.RequestID),
-					Version:   "2.6.0",
 					Type:      dubbocodec.Request,
 					Interface: req.Interf, // Service
 					Method:    req.Method,
@@ -36,6 +34,7 @@ func LocalAgentServer(loops, port int) {
 				if e != nil {
 					// do something
 				}
+				GlobalLocalDubboAgent.requestMap.Store(req.RequestID, req)
 				GlobalLocalDubboAgent.GetConnection().Send(data)
 			}
 		}()

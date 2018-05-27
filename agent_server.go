@@ -43,7 +43,7 @@ func (t ParamType) String() string {
 	case ParamType_Uint16:
 	case ParamType_Uint32:
 	case ParamType_String:
-		return "Ljava/lang/String"
+		return "Ljava/lang/String;"
 	case ParamType_Obj:
 
 	}
@@ -89,12 +89,12 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 	}
 
 	events.Closed = func(c Conn, err error) (action Action) {
-		logger.Info("agent closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
+		logger.Info("agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
 	events.Data = func(c Conn, in []byte) (out []byte, action Action) {
-		logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
+		//logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
 		if in == nil {
 			return
 		}
@@ -177,7 +177,7 @@ func SendAgentRequest(conn Conn,
 	binary.LittleEndian.PutUint32(buf, uint32(len(param)))
 	buf = buf[4:]
 	copy(buf, param)
-	fmt.Printf("send buffer %v \n", out)
+	//fmt.Printf("send buffer %v \n", out)
 	return conn.Send(out)
 
 }

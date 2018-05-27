@@ -51,12 +51,12 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 	}
 
 	events.Closed = func(c Conn, err error) (action Action) {
-		logger.Info("agent closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
+		logger.Info("agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
 	events.Data = func(c Conn, in []byte) (out []byte, action Action) {
-		logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
+		//logger.Info("Data: laddr: %v: raddr: %v, data", c.LocalAddr(), c.RemoteAddr(), string(in))
 		if in == nil {
 			return
 		}
@@ -79,7 +79,7 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 					break
 				}
 			}
-			//logger.Info("insert \n")
+			//fmt.Printf("insert %v \n", *resp)
 			//AppendRequest(out, httpContext.req)
 			workerQueue <- (*DubboReponse)(resp)
 			// handle the request
@@ -98,12 +98,13 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 	for i := 0; i < 8; i++ {
 		go func() {
 			for resp := range lda.workerRespQueue {
-				obj, ok := GlobalLocalDubboAgent.requestMap.Load(resp.ID)
+				//fmt.Printf("insert %v \n", *resp)
+				obj, ok := GlobalLocalDubboAgent.requestMap.Load(uint64(resp.ID))
 				if !ok {
 					logger.Info("receive dubbo client's response, but no this req id %d", int(resp.ID))
 					continue
 				}
-				logger.Info("receive dubbo client's response, ", *resp)
+				//logger.Info("receive dubbo client's response, ", int(resp.ID), string(resp.Data))
 				agentReq := obj.(*AgentRequest)
 				SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, agentReq.Interf, agentReq.Method, agentReq.ParamType, resp.Data)
 			}
@@ -119,9 +120,6 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 func (lda *LocalDubboAgent) GetConnection() Conn {
 	connCount := len(lda.connList)
 	createConnCount := *dubboConnCount - connCount
-	if createConnCount > 0 {
-
-	}
 
 	makeConn := func() error {
 		conn, err := outConnect(lda.server, *dubboHost, *dubboPort, &DubboContext{})
@@ -147,7 +145,7 @@ func (lda *LocalDubboAgent) GetConnection() Conn {
 	}
 
 	for createConnCount > 0 {
-		go makeConn()
+		makeConn()
 		createConnCount--
 	}
 

@@ -1,11 +1,8 @@
 package jsonrpc
 
 import (
-	"encoding/binary"
-)
-
-import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 
 	"github.com/shabicheng/evio/codec"
@@ -35,7 +32,7 @@ const (
 
 	SERIALIZATION_MASK = 0x1f
 
-	DUBBO_VERSION = "2.5.4"
+	DUBBO_VERSION = "2.0.1"
 )
 
 func PackRequest(m *codec.Message) ([]byte, error) {
@@ -50,9 +47,10 @@ func PackRequest(m *codec.Message) ([]byte, error) {
 
 	// magic
 	byteArray = append(byteArray, dubboHeader[:]...)
+	byteArray[3] = 0
 
 	// serialization id, two way flag, event, request/response flag
-	byteArray[2] |= byte(m.ID | 6)
+	byteArray[2] |= byte(FLAG_REQUEST | 6)
 
 	// request id
 	binary.BigEndian.PutUint64(byteArray[4:], uint64(m.ID))
@@ -66,16 +64,17 @@ func PackRequest(m *codec.Message) ([]byte, error) {
 	encoder = NewEncoder()
 
 	var jsonBuf bytes.Buffer
-	writeJsonObject(&jsonBuf, toJson(DUBBO_VERSION))
-	writeJsonObject(&jsonBuf, toJson(m.Interface))
-	writeJsonObject(&jsonBuf, toJson(m.Version))
-	writeJsonObject(&jsonBuf, toJson(m.Method))
-
 	rpcInvocation, ok := m.Data.(*codec.RpcInvocation)
 
 	if ok {
 		args = rpcInvocation.Args
 		attachments = rpcInvocation.Attachments
+
+		writeJsonObject(&jsonBuf, toJson(DUBBO_VERSION))
+		writeJsonObject(&jsonBuf, toJson(m.Interface))
+		writeJsonObject(&jsonBuf, toJson(nil))
+		writeJsonObject(&jsonBuf, toJson(m.Method))
+		writeJsonObject(&jsonBuf, toJson(rpcInvocation.ParameterTypes))
 
 		writeJsonObject(&jsonBuf, toJson(string(args)))
 		writeJsonObject(&jsonBuf, toJson(attachments))
@@ -84,7 +83,18 @@ func PackRequest(m *codec.Message) ([]byte, error) {
 	binary.BigEndian.PutUint32(byteArray[12:], uint32(len(jsonBuf.Bytes())))
 
 	encoder.Append(byteArray[:HEADER_LENGTH])
-	encoder.Append(encoder.encString(jsonBuf.String(), encoder.buffer))
+	encoder.Append(jsonBuf.Bytes())
+
+	// file, err := os.Create("test.bin")
+	// defer file.Close()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// file.Write(encoder.buffer)
+	// fmt.Printf("###### %v \n", encoder.buffer)
+	// time.Sleep(time.Second)
+	// os.Exit(0)
 
 	return encoder.buffer, nil
 }

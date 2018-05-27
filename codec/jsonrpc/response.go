@@ -50,10 +50,9 @@ func UnpackResponse(buf []byte) ([]byte, *Response, error) {
 	}
 
 	res := &Response{}
-	data := buf[16:]
 
 	res.ID = int64(binary.BigEndian.Uint64(buf[4:12]))
-	res.Data = data[HEADER_LENGTH+1 : tt-1]
+	res.Data = buf[HEADER_LENGTH+2 : tt-1]
 
-	return buf[tt:], nil, err
+	return buf[tt:], res, err
 }

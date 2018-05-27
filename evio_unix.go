@@ -296,7 +296,7 @@ func loopTicker(s *server, l *loop) {
 func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error) {
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
-		logger.Error("evio", err)
+		logger.Error("evio outConnect", err)
 	}
 
 	addrInet4 := syscall.SockaddrInet4{Port: port}
@@ -305,7 +305,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	if err != nil {
 		errno, ok := err.(syscall.Errno)
 		if !ok || errno != syscall.EINPROGRESS {
-			logger.Error("evio", err)
+			logger.Error("outConnect evio", err)
 			return nil, err
 		}
 	}
@@ -474,6 +474,7 @@ func loopWrite(s *server, l *loop, c *conn) error {
 	c.outLock.Lock()
 	if c.out == nil {
 		l.poll.ModRead(c.fd)
+		//fmt.Printf("set read %d\n", c.fd)
 		c.outLock.Unlock()
 		return nil
 	}
@@ -491,6 +492,7 @@ func loopWrite(s *server, l *loop, c *conn) error {
 		c.out = c.out[n:]
 	}
 	if len(c.out) == 0 && c.action == None {
+		//fmt.Printf("set read %d", c.fd)
 		l.poll.ModRead(c.fd)
 	}
 	c.outLock.Unlock()

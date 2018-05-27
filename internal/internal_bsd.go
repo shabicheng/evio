@@ -69,12 +69,20 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 		}); err != nil {
 			return err
 		}
+
+		//fmt.Print("send", "\n")
 		for i := 0; i < n; i++ {
 			if fd := int(events[i].Ident); fd != 0 {
+
+				if events[i].Flags&syscall.EV_DELETE > 0 {
+					continue
+				}
 				e := PollEvent_Read
 				if events[i].Filter == syscall.EVFILT_WRITE {
 					e = PollEvent_Write
 				}
+
+				//fmt.Print("poll : ", fd, " e ", e, "\n")
 				if err := iter(fd, nil, e); err != nil {
 					return err
 				}

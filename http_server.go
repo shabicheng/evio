@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shabicheng/evio/logger"
 )
@@ -38,15 +39,17 @@ func (hq *HttpRequest) ParseFormBody() error {
 	if len(kvs) != 4 {
 		return ParseFormBodyError
 	}
-	hq.interf = kvs[0][0:strings.IndexByte(kvs[0], '=')]
-	hq.callMethod = kvs[1][0:strings.IndexByte(kvs[1], '=')]
-	hq.parameterTypesString = kvs[2][0:strings.IndexByte(kvs[2], '=')]
-	hq.parameter = kvs[3][0:strings.IndexByte(kvs[3], '=')]
+	hq.interf = kvs[0][strings.IndexByte(kvs[0], '=')+1:]
+	hq.callMethod = kvs[1][strings.IndexByte(kvs[1], '=')+1:]
+	hq.parameterTypesString = kvs[2][strings.IndexByte(kvs[2], '=')+1:]
+	hq.parameter = kvs[3][strings.IndexByte(kvs[3], '=')+1:]
+	logger.Info("ParseFormBody", hq.interf, hq.callMethod, hq.parameterTypesString, hq.parameter)
 	return nil
 }
 
 func (hq *HttpRequest) Response(req *AgentRequest) error {
 	out := AppendResp(nil, "200 OK", "", string(req.Param))
+	//logger.Info("HttpRequest", string(out))
 	return hq.conn.Send(out)
 }
 
@@ -100,6 +103,11 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 				data = leftover
 				break
 			}
+			//fmt.Print("header -> $$$", httpContext.req.head, "$$\n")
+			//fmt.Print("header -> $$$", httpContext.req.body, "$$\n")
+			//fmt.Print("header -> $$$", httpContext.req.query, "$$\n")
+			//fmt.Print("header -> $$$", httpContext.req.path, "$$\n")
+			//fmt.Print("##########req", *httpContext.req, httpContext.req.body, "\n")
 			err = httpContext.req.ParseFormBody()
 			if err != nil {
 				logger.Info("parse form body error \n")
@@ -143,11 +151,12 @@ func AppendResp(b []byte, status, head, body string) []byte {
 	b = append(b, ' ')
 	b = append(b, status...)
 	b = append(b, '\r', '\n')
-	b = append(b, "Server:shabicheng\r\n"...)
-	b = append(b, "Connection:keep-alive\r\n"...)
+	b = append(b, "Server: shabicheng\r\n"...)
+	b = append(b, "Connection: keep-alive\r\n"...)
+	//b = append(b, "Content-Type: application/json;charset=UTF-8\r\n"...)
 
-	//b = append(b, "Date: "...)
-	//b = time.Now().AppendFormat(b, "Mon, 02 Jan 2006 15:04:05 GMT")
+	b = append(b, "Date: "...)
+	b = time.Now().AppendFormat(b, "Mon, 02 Jan 2006 15:04:05 GMT")
 	b = append(b, '\r', '\n')
 	if len(body) > 0 {
 		b = append(b, "Content-Length: "...)
@@ -215,10 +224,11 @@ func parsereq(data []byte, req *HttpRequest) (leftover []byte, err error, ready 
 	for ; i < len(sdata); i++ {
 		if i > 1 && sdata[i] == '\n' && sdata[i-1] == '\r' {
 			line := sdata[s : i-1]
+			//fmt.Print("header line %", line, "%\n")
 			s = i + 1
 			if line == "" {
 				req.bodyLen = clen
-				req.head = sdata[len(top)+2 : i+1]
+				req.head = sdata[len(top) : i+1]
 				i++
 				if clen > 0 {
 					if len(sdata[i:]) < clen {
@@ -229,7 +239,7 @@ func parsereq(data []byte, req *HttpRequest) (leftover []byte, err error, ready 
 				}
 				return data[i:], nil, true
 			}
-			if strings.HasPrefix(line, "Content-Length:") {
+			if strings.HasPrefix(line, "content-length:") {
 				n, err := strconv.ParseInt(strings.TrimSpace(line[len("Content-Length:"):]), 10, 64)
 				if err == nil {
 					clen = int(n)
