@@ -266,19 +266,25 @@ func loopRun(s *server, l *loop) {
 		c := l.fdconns[fd]
 		switch {
 		case c == nil:
-			logger.Info("loopAccept  fd  idx \n", event, fd, l.idx)
+			//logger.Info("loopAccept  fd  idx \n", event, fd, l.idx)
 			return loopAccept(s, l, fd)
 		case !c.opened:
-			logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
+			//logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
 			return loopOpened(s, l, c)
 		case event&internal.PollEvent_Write != 0:
-			logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
-			return loopWrite(s, l, c)
+			//logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
+			sendFlag, err := loopWrite(s, l, c)
+			// 如果没有发送，尝试读取，这时候会关闭连接
+			if !sendFlag {
+				return loopRead(s, l, c)
+			} else {
+				return err
+			}
 		case c.action != None:
-			logger.Info("loopAction  fd  idx \n", event, fd, l.idx)
+			//logger.Info("loopAction  fd  idx \n", event, fd, l.idx)
 			return loopAction(s, l, c)
 		default:
-			logger.Info("loopRead  fd  idx \n", event, fd, l.idx)
+			//logger.Info("loopRead  fd  idx \n", event, fd, l.idx)
 			return loopRead(s, l, c)
 		}
 	})
@@ -467,21 +473,21 @@ func loopOpened(s *server, l *loop, c *conn) error {
 	return nil
 }
 
-func loopWrite(s *server, l *loop, c *conn) error {
+func loopWrite(s *server, l *loop, c *conn) (sendFlag bool, err error) {
 	c.outLock.Lock()
 	if c.out == nil {
 		l.poll.ModRead(c.fd)
 		//fmt.Printf("set read %d\n", c.fd)
 		c.outLock.Unlock()
-		return nil
+		return false, nil
 	}
 	n, err := syscall.Write(c.fd, c.out)
 	if err != nil {
 		c.outLock.Unlock()
 		if err == syscall.EAGAIN {
-			return nil
+			return true, nil
 		}
-		return loopCloseConn(s, l, c, err)
+		return true, loopCloseConn(s, l, c, err)
 	}
 	if n == len(c.out) {
 		c.out = nil
@@ -494,7 +500,7 @@ func loopWrite(s *server, l *loop, c *conn) error {
 	}
 	c.outLock.Unlock()
 
-	return nil
+	return true, nil
 }
 
 func loopAction(s *server, l *loop, c *conn) error {
