@@ -344,6 +344,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 		loopidx: l.idx,
 	}
 	c.SetContext(ctx)
+	l.poll.AddRead(fd)
 
 	atomic.AddInt32(&l.count, 1)
 	l.fdconns[fd] = c
