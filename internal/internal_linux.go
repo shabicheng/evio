@@ -85,7 +85,7 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 func (p *Poll) AddReadWrite(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_ADD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
+			Events: syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP,
 		},
 	); err != nil {
 		p.ModReadWrite(fd)
@@ -96,7 +96,7 @@ func (p *Poll) AddReadWrite(fd int) {
 func (p *Poll) AddRead(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_ADD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN,
+			Events: syscall.EPOLLIN | syscall.EPOLLRDHUP,
 		},
 	); err != nil {
 		log.Println(err)
@@ -107,7 +107,7 @@ func (p *Poll) AddRead(fd int) {
 func (p *Poll) ModRead(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_MOD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN,
+			Events: syscall.EPOLLIN | syscall.EPOLLRDHUP,
 		},
 	); err != nil {
 		log.Println(err)
@@ -118,7 +118,7 @@ func (p *Poll) ModRead(fd int) {
 func (p *Poll) ModReadWrite(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_MOD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
+			Events: syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP,
 		},
 	); err != nil {
 		log.Println(err)
@@ -129,7 +129,7 @@ func (p *Poll) ModReadWrite(fd int) {
 func (p *Poll) ModDetach(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_DEL, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
+			Events: syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP,
 		},
 	); err != nil {
 		log.Println(err)

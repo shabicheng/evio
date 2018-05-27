@@ -306,7 +306,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	if err != nil {
 		//errno, ok := err.(syscall.Errno)
 		//if !ok || errno != syscall.EINPROGRESS {
-		logger.Error("outConnect evio", err)
+		logger.Error("REMOTE_CONN_ERROR", "outConnect evio", err)
 		//}
 		return nil, err
 	}
