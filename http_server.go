@@ -43,7 +43,7 @@ func (hq *HttpRequest) ParseFormBody() error {
 	hq.callMethod = kvs[1][strings.IndexByte(kvs[1], '=')+1:]
 	hq.parameterTypesString = kvs[2][strings.IndexByte(kvs[2], '=')+1:]
 	hq.parameter = kvs[3][strings.IndexByte(kvs[3], '=')+1:]
-	logger.Info("ParseFormBody", hq.interf, hq.callMethod, hq.parameterTypesString, hq.parameter)
+	//logger.Info("ParseFormBody", hq.interf, hq.callMethod, hq.parameterTypesString, hq.parameter)
 	return nil
 }
 
