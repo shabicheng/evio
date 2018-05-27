@@ -303,11 +303,11 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	copy(addrInet4.Addr[:], net.ParseIP(addr).To4())
 	err = syscall.Connect(fd, &addrInet4)
 	if err != nil {
-		errno, ok := err.(syscall.Errno)
-		if !ok || errno != syscall.EINPROGRESS {
-			logger.Error("outConnect evio", err)
-			return nil, err
-		}
+		//errno, ok := err.(syscall.Errno)
+		//if !ok || errno != syscall.EINPROGRESS {
+		logger.Error("outConnect evio", err)
+		//}
+		return nil, err
 	}
 
 	if err = syscall.SetNonblock(fd, true); err != nil {
@@ -346,7 +346,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 
 	atomic.AddInt32(&l.count, 1)
 	l.fdconns[fd] = c
-
+	fmt.Print(idx, s.balance, "fd", fd, "\n")
 	loopOpened(s, l, c)
 	l.poll.Trigger(&internal.AddConnection{FD: fd})
 
