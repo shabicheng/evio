@@ -257,10 +257,10 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 		}
 	}
 
-	rch := c.Watch(context.Background(), "foo", etcd.WithPrefix())
+	rch := c.Watch(context.Background(), interf, etcd.WithPrefix())
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
-			//logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
+			logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
 
 			switch ev.Type {
 			case mvccpb.PUT:
