@@ -313,6 +313,7 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	if err = syscall.SetNonblock(fd, true); err != nil {
 		logger.Error("setnonblock1", err)
 	}
+	time.Sleep(time.Second * 5)
 	// add to loop
 	idx := 0
 	if len(s.loops) > 1 {
