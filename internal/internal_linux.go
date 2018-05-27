@@ -65,10 +65,10 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 		for i := 0; i < n; i++ {
 			if fd := int(events[i].Fd); fd != p.wfd {
 				e := PollEvent_None
-				if events[i].Events|syscall.EPOLLIN > 0 {
+				if events[i].Events&syscall.EPOLLIN > 0 {
 					e |= PollEvent_Read
 				}
-				if events[i].Events|syscall.EPOLLOUT > 0 {
+				if events[i].Events&syscall.EPOLLOUT > 0 {
 					e |= PollEvent_Write
 				}
 				if err := iter(fd, nil, e); err != nil {
