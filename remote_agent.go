@@ -210,6 +210,7 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 
 	events := CreateAgentEvent(4, ram.workerRespQueue)
 	events.Closed = func(c Conn, err error) (action Action) {
+		logger.Info("ServeConnectAgent agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
 		ram.DeleteRemoteAgentConnection(c)
 		return
 	}

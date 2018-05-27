@@ -66,13 +66,13 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 	events.Opened = func(c Conn) (out []byte, opts Options, action Action) {
 		c.SetContext(&HttpContext{})
 
-		//logger.Info("opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		//logger.Info("http opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
 	// 被动监听的 close 不用管
 	events.Closed = func(c Conn, err error) (action Action) {
-		//logger.Info("closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
+		//logger.Info("http closed: %s: %s", c.LocalAddr().String(), c.RemoteAddr().String())
 		return
 	}
 

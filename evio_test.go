@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/shabicheng/evio/logger"
 )
 
 func TestServe(t *testing.T) {
@@ -101,6 +103,7 @@ func testServe(network, addr string, unix bool, nclients, nloops int, balance Lo
 		return
 	}
 	events.Closed = func(c Conn, err error) (action Action) {
+		logger.Info("agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
 		if c.Context() != c {
 			panic("invalid context")
 		}
