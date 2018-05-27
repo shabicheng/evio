@@ -238,7 +238,7 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 			keyValuePairs := strings.Split(tail, ":")
 			addr := keyValuePairs[0]
 			port, _ := strconv.Atoi(keyValuePairs[1])
-			ram.AddAgent(addr, port, interf, 4, 1000)
+			ram.AddAgent(addr, port, interf, *defaultAgentCount, 1000)
 		}
 	}
 

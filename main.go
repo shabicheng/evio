@@ -6,17 +6,31 @@ import (
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
-var localLoops = flag.Int("local-loop", 8, "local loop count")
+var localLoops = flag.Int("local-loop", 2, "local loop count")
 var localPort = flag.Int("local-port", 20000, "local loop count")
 var mode = flag.String("mode", "consumer", "mode")
 var providerPort = flag.Int("provider-port", 30000, "provide agent listen port")
-var providerLoops = flag.Int("provider-loop", 4, "provide loop count")
+var providerLoops = flag.Int("provider-loop", 2, "provide loop count")
+var defaultAgentCount = flag.Int("agent-count", 2, "default agent count")
+
+func DumpCpuInfo(seconds int) {
+	f, err := os.Create(*mode + "_cpuprof.prof")
+	if err != nil {
+		return
+	}
+	pprof.StartCPUProfile(f)
+	time.Sleep((time.Duration)(seconds) * time.Second)
+	pprof.StopCPUProfile()
+}
 
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
+	go DumpCpuInfo(60)
 
 	flag.Parse()
 	go func() {

@@ -17,6 +17,9 @@ type LoadBalancer struct {
 
 func (lb *LoadBalancer) Get() int {
 	totalCount := atomic.LoadUint32(&lb.totalCount)
+	if totalCount == 0 {
+		return int(totalCount)
+	}
 	newCount := atomic.AddUint32(&lb.lastCount, 1)
 	if newCount-atomic.LoadUint32(&lb.lastBaseCount) >
 		lb.minWeight[atomic.LoadUint32(&lb.lastIndex)%totalCount] {

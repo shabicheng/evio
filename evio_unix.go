@@ -255,9 +255,10 @@ func loopRun(s *server, l *loop) {
 
 		//logger.Info("event  fd  idx \n", event, fd, l.idx)
 		if fd == 0 {
-			addC, ok := note.(*internal.AddConnection)
+			noteConn, ok := note.(*conn)
 			if ok {
-				l.poll.AddReadWrite(addC.FD)
+				l.fdconns[noteConn.fd] = noteConn
+				l.poll.AddReadWrite(noteConn.fd)
 				return nil
 			}
 			return loopNote(s, l, note)
@@ -345,13 +346,8 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	c.SetContext(ctx)
 	l.poll.AddRead(fd)
 
-	atomic.AddInt32(&l.count, 1)
-	l.fdconns[fd] = c
 	//fmt.Print(idx, s.balance, "fd", fd, "\n")
-	loopOpened(s, l, c)
-	l.poll.Trigger(&internal.AddConnection{FD: fd})
-
-	//fmt.Print(idx, s.balance, "fd", fd, "\n")
+	l.poll.Trigger(c)
 
 	return c, err
 }
