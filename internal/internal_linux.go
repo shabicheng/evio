@@ -87,7 +87,7 @@ func (p *Poll) AddReadWrite(fd int) {
 			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
 		},
 	); err != nil {
-		panic(err)
+		p.ModReadWrite(fd)
 	}
 }
 
