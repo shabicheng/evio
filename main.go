@@ -2,10 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
 	"math/rand"
-	"net/http"
-	_ "net/http/pprof"
+	//_ "net/http/pprof"
 	"os"
 	"runtime/pprof"
 	"time"
@@ -30,16 +28,18 @@ func DumpCpuInfo(seconds int) {
 
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
-	go DumpCpuInfo(60)
 
 	flag.Parse()
-	go func() {
-		if *mode == "consumer" {
-			log.Println(http.ListenAndServe("localhost:8088", nil))
-		} else {
-			log.Println(http.ListenAndServe("localhost:8089", nil))
-		}
-	}()
+
+	// go DumpCpuInfo(60)
+	// go func() {
+	// 	if *mode == "consumer" {
+	// 		log.Println(http.ListenAndServe("localhost:8088", nil))
+	// 	} else {
+	// 		log.Println(http.ListenAndServe("localhost:8089", nil))
+	// 	}
+	// }()
+
 	if *mode == "consumer" {
 		GlobalRemoteAgentManager.ServeConnectAgent()
 		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)

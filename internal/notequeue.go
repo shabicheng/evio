@@ -35,10 +35,12 @@ func (l *Spinlock) Unlock() {
 type noteQueue struct {
 	mu    Spinlock
 	notes []interface{}
+	n     int64
 }
 
 func (q *noteQueue) Add(note interface{}) (one bool) {
 	q.mu.Lock()
+	atomic.AddInt64(&q.n, 1)
 	q.notes = append(q.notes, note)
 	n := len(q.notes)
 	q.mu.Unlock()
@@ -46,12 +48,16 @@ func (q *noteQueue) Add(note interface{}) (one bool) {
 }
 
 func (q *noteQueue) ForEach(iter func(note interface{}) error) error {
+	if atomic.LoadInt64(&q.n) != 0 {
+		return nil
+	}
 	q.mu.Lock()
 	if len(q.notes) == 0 {
 		q.mu.Unlock()
 		return nil
 	}
 	notes := q.notes
+	atomic.StoreInt64(&q.n, 0)
 	q.notes = nil
 	q.mu.Unlock()
 	for _, note := range notes {
