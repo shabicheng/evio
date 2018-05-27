@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	seelog "github.com/cihub/seelog"
-	"github.com/shabicheng/alibabacloud-log-controller/util"
+	"github.com/shabicheng/evio/util"
 )
 
 // do not use this logger directly

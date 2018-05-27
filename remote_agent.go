@@ -17,7 +17,7 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
-var etcdHost = flag.String("etcd-host", "etcd", "")
+var etcdHost = flag.String("etcd-host", "localhost", "")
 var etcdPort = flag.Int("etcd-port", 2379, "")
 
 // 服务注册的key为:    /dubbomesh/com.some.package.IHelloService/192.168.100.100:2000
@@ -28,7 +28,7 @@ var GlobalRemoteAgentManager RemoteAgentManager
 type RemoteAgent struct {
 	connList      []Conn
 	lastSendIndex int
-	sendCount     int
+	sendCount     uint64
 	addr          string
 	port          int
 	allInterface  sync.Map
@@ -50,7 +50,12 @@ func (ra *RemoteAgent) processResponse(respQueue chan *AgentRequest) error {
 }
 
 func (ra *RemoteAgent) GetConnection() Conn {
-	return nil
+	newCount := atomic.AddUint64(&ra.sendCount, 1)
+	connLen := len(ra.connList)
+	if connLen == 0 {
+		return nil
+	}
+	return ra.connList[int(newCount)%connLen]
 }
 
 func (ra *RemoteAgent) AddInterface(interf string) {
@@ -165,6 +170,7 @@ func (ram *RemoteAgentManager) getInterfaceKey(interf string, port int) string {
 func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *HttpRequest) error {
 	// 老夫先hack一把
 	if len(ram.hackAgents) == 0 {
+		fmt.Printf("empty agents \n")
 		return nil
 	}
 	ram.hackAgents[ram.hackLB.Get()].SendRequest(agentReq, httpReq)
