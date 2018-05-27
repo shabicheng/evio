@@ -48,7 +48,7 @@ func (q *noteQueue) Add(note interface{}) (one bool) {
 }
 
 func (q *noteQueue) ForEach(iter func(note interface{}) error) error {
-	if atomic.LoadInt64(&q.n) != 0 {
+	if atomic.LoadInt64(&q.n) == 0 {
 		return nil
 	}
 	q.mu.Lock()
