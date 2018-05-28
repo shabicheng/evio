@@ -66,7 +66,7 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 	events.Opened = func(c Conn) (out []byte, opts Options, action Action) {
 		c.SetContext(&HttpContext{})
 
-		logger.Info("http opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		//logger.Info("http opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 

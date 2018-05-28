@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -20,6 +21,9 @@ import (
 
 var etcdHost = flag.String("etcd-host", "localhost", "")
 var etcdPort = flag.Int("etcd-port", 2379, "")
+
+var noAgentConnectionError = errors.New("noAgentConnectionError")
+var noAgentError = errors.New("noAgentError")
 
 // 服务注册的key为:    /dubbomesh/com.some.package.IHelloService/192.168.100.100:2000
 var GlobalInterface = "/dubbomesh/com.alibaba.dubbo.performance.demo.provider.IHelloService/"
@@ -66,6 +70,9 @@ func (ra *RemoteAgent) CreateConnection(wg *sync.WaitGroup) (Conn, error) {
 
 func (ra *RemoteAgent) SendRequest(req *AgentRequest, httpReq *HttpRequest) error {
 	conn := ra.GetConnection()
+	if conn == nil {
+		return noAgentConnectionError
+	}
 	req.RequestID = atomic.AddUint64(&ra.reqID, 1)
 	ra.requestMap.Store(req.RequestID, httpReq)
 	return SendAgentRequest(conn, req.Result, req.RequestID, req.Interf, req.Method, req.ParamType, req.Param)
@@ -134,10 +141,9 @@ func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *H
 	conn, connCount := ram.hackManager.GetConnection()
 	if connCount == 0 {
 		logger.Info("empty agents \n")
-		return nil
+		return noAgentError
 	}
-	conn.(*RemoteAgent).SendRequest(agentReq, httpReq)
-	return nil
+	return conn.(*RemoteAgent).SendRequest(agentReq, httpReq)
 }
 
 func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {

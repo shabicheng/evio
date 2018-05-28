@@ -1,5 +1,7 @@
 package main
 
+import "github.com/shabicheng/evio/logger"
+
 func LocalHttpServer(loops, port int) {
 
 	workerQueue := make(chan *HttpRequest, 100)
@@ -15,9 +17,12 @@ func LocalHttpServer(loops, port int) {
 					Param:     []byte(req.parameter),
 				}
 				//logger.Info("req.interf", req.interf, req.callMethod)
-				GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
+				if err := GlobalRemoteAgentManager.ForwardRequest(agentReq, req); err != nil {
+					logger.Warning("forward request error", err)
+					req.conn.Send(AppendResp(nil, "500", err.Error(), "forward request error"))
+				}
 				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
-				//logger.Info("get \n")
+
 			}
 		}()
 	}
