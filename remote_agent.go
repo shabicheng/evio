@@ -38,19 +38,6 @@ type RemoteAgent struct {
 	defaultConn   int
 }
 
-func (ra *RemoteAgent) processResponse(respQueue chan *AgentRequest) error {
-	for resp := range respQueue {
-		if val, ok := ra.requestMap.Load(resp.RequestID); ok {
-			req := val.(Request)
-			req.Response(resp)
-		} else {
-			// error
-		}
-
-	}
-	return nil
-}
-
 func (ra *RemoteAgent) GetConnection() Conn {
 	connInterf, connCount := ra.connManager.GetConnection()
 	createConnCount := ra.defaultConn - connCount
@@ -185,8 +172,10 @@ func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {
 
 func (ram *RemoteAgentManager) DeleteRemoteAgentConnection(conn Conn) {
 	agentCtx := conn.Context().(*AgentContext)
-	agentCtx.ra.connManager.DeleteConnection(conn)
+	deletedCount := agentCtx.ra.connManager.DeleteConnection(conn)
+
 	agentCtx.ra.CreateConnection(nil)
+	logger.Info("ServeConnectAgent agent closed", conn.LocalAddr(), conn.RemoteAddr(), "deleted count", deletedCount, "now count", agentCtx.ra.connManager.GetConnectionCount())
 }
 
 func (ram *RemoteAgentManager) ServeConnectAgent() error {
@@ -204,14 +193,15 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 				//logger.Info("receive remote agent's response, ", string(resp.Param))
 				httpReq := obj.(*HttpRequest)
 				httpReq.Response(resp)
+				ctx.ra.requestMap.Delete(resp.RequestID)
 			}
 		}()
 	}
 
 	events := CreateAgentEvent(4, ram.workerRespQueue)
 	events.Closed = func(c Conn, err error) (action Action) {
-		logger.Info("ServeConnectAgent agent closed: %s: %s", c.LocalAddr(), c.RemoteAddr())
 		ram.DeleteRemoteAgentConnection(c)
+
 		return
 	}
 	var err error

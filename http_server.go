@@ -53,7 +53,7 @@ func (hq *HttpRequest) Response(req *AgentRequest) error {
 	return hq.conn.Send(out)
 }
 
-// 向consumer服务
+// 监听本地20000端口，向consumer服务
 func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 
 	var events Events
@@ -66,7 +66,7 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 	events.Opened = func(c Conn) (out []byte, opts Options, action Action) {
 		c.SetContext(&HttpContext{})
 
-		//logger.Info("http opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
+		logger.Info("http opened: laddr: %v: raddr: %v", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 
@@ -112,7 +112,7 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 			//fmt.Print("##########req", *httpContext.req, httpContext.req.body, "\n")
 			err = httpContext.req.ParseFormBody()
 			if err != nil {
-				logger.Info("parse form body error \n")
+				//logger.Info("parse form body error \n")
 				out = AppendResp(out, "500 Error", "", err.Error()+"\n")
 				action = Close
 				break

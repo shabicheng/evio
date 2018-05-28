@@ -8,7 +8,7 @@ import (
 	"github.com/shabicheng/evio/logger"
 
 	dubbocodec "github.com/shabicheng/evio/codec"
-	dubboagent "github.com/shabicheng/evio/codec/jsonrpc"
+	dubbojson "github.com/shabicheng/evio/codec/jsonrpc"
 )
 
 var dubboPort = flag.Int("dubbo-port", 20889, "")
@@ -25,7 +25,7 @@ type LocalDubboAgent struct {
 	connManager ConnectionManager
 }
 
-type DubboReponse dubboagent.Response
+type DubboReponse dubbojson.Response
 
 type DubboContext struct {
 	is InputStream
@@ -69,7 +69,7 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 		// process the pipeline
 		for {
 			//logger.Info("data %v\n", data)
-			leftover, resp, err := dubboagent.UnpackResponse(data)
+			leftover, resp, err := dubbojson.UnpackResponse(data)
 			//logger.Info("result %v %v %v \n", leftover, err, ready)
 			if err != nil {
 				if err == dubbocodec.ErrHeaderNotEnough {
@@ -94,6 +94,31 @@ func CreateDubboEvent(loops int, workerQueue chan *DubboReponse) *Events {
 	return events
 }
 
+func (lda *LocalDubboAgent) SendDubboRequest(req *AgentRequest) {
+	attachments := make(map[string]string)
+	attachments["path"] = req.Interf
+	// send to dubbo agent
+	message := &dubbocodec.Message{
+		ID:        int64(req.RequestID),
+		Type:      dubbocodec.Request,
+		Interface: req.Interf, // Service
+		Method:    req.Method,
+		Data: &dubbocodec.RpcInvocation{
+			Method:         req.Method,
+			ParameterTypes: req.ParamType.String(),
+			Args:           req.Param,
+			Attachments:    attachments,
+		},
+	}
+
+	data, e := dubbojson.PackRequest(message)
+	if e != nil {
+		// do something
+	}
+	lda.requestMap.Store(req.RequestID, req)
+	lda.GetConnection().Send(data)
+}
+
 func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 
 	lda.workerRespQueue = make(chan *DubboReponse, 1000)
@@ -103,13 +128,22 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 			for resp := range lda.workerRespQueue {
 				//fmt.Printf("insert %v \n", *resp)
 				obj, ok := GlobalLocalDubboAgent.requestMap.Load(uint64(resp.ID))
+
 				if !ok {
 					logger.Info("receive dubbo client's response, but no this req id %d", int(resp.ID))
 					continue
 				}
-				//logger.Info("receive dubbo client's response, ", int(resp.ID), string(resp.Data))
+
 				agentReq := obj.(*AgentRequest)
+				// if !resp.Status.OK() {
+				// 	logger.Info("receive dubbo client's response, but status not OK ", int(resp.ID), resp.Status.String())
+				// 	time.Sleep(time.Millisecond * 20)
+				// 	GlobalLocalDubboAgent.SendDubboRequest(agentReq)
+				// 	continue
+				// }
+				//logger.Info("receive dubbo client's response, ", int(resp.ID), string(resp.Data))
 				SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, agentReq.Interf, agentReq.Method, agentReq.ParamType, resp.Data)
+				GlobalLocalDubboAgent.requestMap.Delete(uint64(resp.ID))
 			}
 		}()
 	}

@@ -24,7 +24,7 @@ func (cm *ConnectionManager) DeleteConnection(conn interface{}) int {
 	for index, c := range cm.connList {
 		if c == conn {
 			// delete conneciton
-			cm.connList = append(cm.connList[0:index], cm.connList[index:]...)
+			cm.connList = append(cm.connList[0:index], cm.connList[index+1:]...)
 			cm.lb.Delete(uint32(index))
 		}
 	}
