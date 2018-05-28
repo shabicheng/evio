@@ -11,9 +11,10 @@ import (
 
 // Poll ...
 type Poll struct {
-	fd    int // epoll fd
-	wfd   int // wake fd
-	notes noteQueue
+	fd     int    // epoll fd
+	wfd    int    // wake fd
+	wfdBuf []byte // wfd buffer to read packet
+	notes  noteQueue
 }
 
 // OpenPoll ...
@@ -30,6 +31,7 @@ func OpenPoll() *Poll {
 		log.Println(err)
 	}
 	l.wfd = int(r0)
+	l.wfdBuf = make([]byte, 0xFF)
 	l.AddRead(l.wfd)
 	return l
 }
@@ -75,7 +77,7 @@ func (p *Poll) Wait(iter func(fd int, note interface{}, event int) error) error 
 					return err
 				}
 			} else {
-
+				syscall.Read(p.wfd, p.wfdBuf)
 			}
 		}
 	}
