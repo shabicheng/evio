@@ -145,6 +145,31 @@ func AppendRequest(b []byte, req *HttpRequest) []byte {
 	return AppendResp(b, "200 OK", "", res)
 }
 
+var contentLengthHeaderLower = "content-length:"
+var contentLengthHeaderUpper = "CONTENT-LENGTH:"
+var contentLengthHeaderLen = 15
+
+func getContentLength(header string) (bool, int) {
+	headerLen := len(header)
+	if headerLen < contentLengthHeaderLen {
+		return false, 0
+	}
+	i := 0
+	for ; i < contentLengthHeaderLen; i++ {
+		if header[i] != contentLengthHeaderLower[i] &&
+			header[i] != contentLengthHeaderUpper[i] {
+			return false, 0
+		}
+	}
+	for ; i < headerLen; i++ {
+		if header[i] != ' ' {
+			l, _ := strconv.Atoi(header[i:])
+			return true, l
+		}
+	}
+	return false, 0
+}
+
 // AppendResp will append a valid http response to the provide bytes.
 // The status param should be the code plus text such as "200 OK".
 // The head parameter should be a series of lines ending with "\r\n" or empty.
@@ -241,11 +266,9 @@ func parsereq(data []byte, req *HttpRequest) (leftover []byte, err error, ready 
 				}
 				return data[i:], nil, true
 			}
-			if strings.HasPrefix(line, "content-length:") {
-				n, err := strconv.ParseInt(strings.TrimSpace(line[len("Content-Length:"):]), 10, 64)
-				if err == nil {
-					clen = int(n)
-				}
+			ok, cl := getContentLength(line)
+			if ok {
+				clen = cl
 			}
 		}
 	}
