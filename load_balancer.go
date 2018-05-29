@@ -52,6 +52,6 @@ func (lb *LoadBalancer) Delete(index uint32) {
 	}
 	// dec
 	lb.minWeight = append(lb.minWeight[0:index], lb.minWeight[index:]...)
-	lb.weight = append(lb.weight[0:index], lb.weight[index:]...)
+	lb.weight = append(lb.weight[0:index], lb.weight[index+1:]...)
 	atomic.AddUint32(&lb.totalCount, ^uint32(0))
 }
