@@ -117,6 +117,7 @@ func (lda *LocalDubboAgent) SendDubboRequest(req *AgentRequest) {
 	}
 	lda.requestMap.Store(req.RequestID, req)
 	lda.GetConnection().Send(data)
+	req.profileRemoteAgentSendDubboTime = time.Now()
 }
 
 func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
@@ -135,15 +136,17 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 				}
 
 				agentReq := obj.(*AgentRequest)
-				// if !resp.Status.OK() {
-				// 	logger.Info("receive dubbo client's response, but status not OK ", int(resp.ID), resp.Status.String())
-				// 	time.Sleep(time.Millisecond * 20)
-				// 	GlobalLocalDubboAgent.SendDubboRequest(agentReq)
-				// 	continue
-				// }
+				if !resp.Status.OK() {
+					logger.Info("receive dubbo client's response, but status not OK ", int(resp.ID), resp.Status.String())
+					// 	time.Sleep(time.Millisecond * 20)
+					// 	GlobalLocalDubboAgent.SendDubboRequest(agentReq)
+					// 	continue
+				}
 				//logger.Info("receive dubbo client's response, ", int(resp.ID), string(resp.Data))
+				agentReq.profileRemoteAgentGetDubboTime = time.Now()
 				SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, agentReq.Interf, agentReq.Method, agentReq.ParamType, resp.Data)
 				GlobalLocalDubboAgent.requestMap.Delete(uint64(resp.ID))
+				agentReq.profileRemoteAgentSendAgentTime = time.Now()
 			}
 		}()
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shabicheng/evio/logger"
 )
@@ -68,6 +69,11 @@ type AgentRequest struct {
 	Method     string
 	ParamType  ParamType
 	Param      []byte
+
+	profileRemoteAgentGetTime       time.Time
+	profileRemoteAgentSendDubboTime time.Time
+	profileRemoteAgentGetDubboTime  time.Time
+	profileRemoteAgentSendAgentTime time.Time
 }
 
 // 主动连接的Server需要特殊处理close 时间
@@ -106,6 +112,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 		if agentContext.req == nil {
 			agentContext.req = &AgentRequest{}
 			agentContext.req.conn = c
+			agentContext.req.profileRemoteAgentGetTime = time.Now()
 			agentContext.is.b = nil
 			// handle the request
 			agentContext.req.RemoteAddr = c.RemoteAddr().String()
@@ -130,6 +137,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 			workerQueue <- agentContext.req
 			agentContext.req = nil
 			agentContext.req = &AgentRequest{}
+			agentContext.req.profileRemoteAgentGetTime = time.Now()
 			agentContext.req.conn = c
 			agentContext.is.b = nil
 			// handle the request

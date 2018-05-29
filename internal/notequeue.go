@@ -40,9 +40,8 @@ type noteQueue struct {
 
 func (q *noteQueue) Add(note interface{}) (one bool) {
 	q.mu.Lock()
-	atomic.AddInt64(&q.n, 1)
+	n := atomic.AddInt64(&q.n, 1)
 	q.notes = append(q.notes, note)
-	n := len(q.notes)
 	q.mu.Unlock()
 	return n == 1
 }

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"sync"
+	"github.com/shabicheng/evio/internal"
 )
 
 type ConnectionManager struct {
 	connList []interface{}
 	lb       LoadBalancer
-	lock     sync.RWMutex
+	lock     internal.Spinlock
 }
 
 func (cm *ConnectionManager) AddConnection(conn interface{}) int {
@@ -34,30 +34,30 @@ func (cm *ConnectionManager) DeleteConnection(conn interface{}) int {
 }
 
 func (cm *ConnectionManager) GetConnection() (interface{}, int) {
-	cm.lock.RLock()
+	cm.lock.Lock()
 	connCount := len(cm.connList)
 	if connCount == 0 {
-		cm.lock.RUnlock()
+		cm.lock.Unlock()
 		return nil, connCount
 	}
 	index := cm.lb.Get()
 	conn := cm.connList[index%connCount]
-	cm.lock.RUnlock()
+	cm.lock.Unlock()
 	return conn, connCount
 }
 
 func (cm *ConnectionManager) GetAllConnections() []interface{} {
-	cm.lock.RLock()
+	cm.lock.Lock()
 	var connList []interface{}
 	connList = append(connList, cm.connList[:]...)
-	cm.lock.RUnlock()
+	cm.lock.Unlock()
 	return connList
 }
 
 func (cm *ConnectionManager) GetConnectionCount() int {
-	cm.lock.RLock()
+	cm.lock.Lock()
 	connCount := len(cm.connList)
-	cm.lock.RUnlock()
+	cm.lock.Unlock()
 	return connCount
 }
 

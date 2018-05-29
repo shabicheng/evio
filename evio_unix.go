@@ -53,6 +53,7 @@ func (c *conn) Send(data []byte) error {
 	if c.out != nil {
 		c.out = append(c.out, data...)
 		c.outLock.Unlock()
+		//fmt.Print("?????\n")
 	}
 	c.outLock.Unlock()
 
@@ -272,7 +273,7 @@ func loopRun(s *server, l *loop) {
 			//logger.Info("loopOpened  fd  idx \n", event, fd, l.idx)
 			return loopOpened(s, l, c)
 		case event&internal.PollEvent_Write != 0:
-			//logger.Info("loopWrite  fd  idx \n", event, fd, l.idx)
+			//fmt.Printf("loopWrite %d fd %d  idx %d, data len %d %s \n", event, fd, l.idx, len(c.out), string(c.out))
 			sendFlag, err := loopWrite(s, l, c)
 			// 如果没有发送，尝试读取，这时候会关闭连接
 			if !sendFlag {
@@ -292,6 +293,7 @@ func loopRun(s *server, l *loop) {
 }
 
 func loopTicker(s *server, l *loop) {
+	logger.Info("start loop ticker")
 	for {
 		if err := l.poll.Trigger(time.Duration(0)); err != nil {
 			break
@@ -490,9 +492,12 @@ func loopWrite(s *server, l *loop, c *conn) (sendFlag bool, err error) {
 		c.outLock.Unlock()
 		return false, nil
 	}
+	//fmt.Printf("syscall.Write \n")
 	n, err := syscall.Write(c.fd, c.out)
+	//fmt.Printf("syscall.Write done \n")
 	if err != nil {
 		c.outLock.Unlock()
+		fmt.Printf("send error %s \n", err.Error())
 		if err == syscall.EAGAIN {
 			return true, nil
 		}
@@ -504,7 +509,7 @@ func loopWrite(s *server, l *loop, c *conn) (sendFlag bool, err error) {
 		c.out = c.out[n:]
 	}
 	if len(c.out) == 0 && c.action == None {
-		//fmt.Printf("set read %d", c.fd)
+		//fmt.Printf("set done and set read %d", c.fd)
 		l.poll.ModRead(c.fd)
 	}
 	c.outLock.Unlock()
@@ -530,32 +535,33 @@ func loopAction(s *server, l *loop, c *conn) error {
 }
 
 func loopRead(s *server, l *loop, c *conn) error {
-	var in []byte
-	n, err := syscall.Read(c.fd, l.packet)
-	if n == 0 || err != nil {
-		if err == syscall.EAGAIN {
-			return nil
+	for {
+		var in []byte
+		n, err := syscall.Read(c.fd, l.packet)
+		if n == 0 || err != nil {
+			if err == syscall.EAGAIN {
+				return nil
+			}
+			return loopCloseConn(s, l, c, err)
 		}
-		return loopCloseConn(s, l, c, err)
-	}
-	in = l.packet[:n]
-	if !c.reuse {
-		in = append([]byte{}, in...)
-	}
-	if s.events.Data != nil {
-		out, action := s.events.Data(c, in)
-		c.action = action
-		if len(out) > 0 {
-			c.outLock.Lock()
-			c.out = append(c.out, out...)
-			c.outLock.Unlock()
+		in = l.packet[:n]
+		if !c.reuse {
+			in = append([]byte{}, in...)
+		}
+		if s.events.Data != nil {
+			out, action := s.events.Data(c, in)
+			c.action = action
+			if len(out) > 0 {
+				c.outLock.Lock()
+				c.out = append(c.out, out...)
+				c.outLock.Unlock()
+				l.poll.ModReadWrite(c.fd)
+			}
+		}
+		if c.action != None {
 			l.poll.ModReadWrite(c.fd)
 		}
 	}
-	if c.action != None {
-		l.poll.ModReadWrite(c.fd)
-	}
-	return nil
 }
 
 type detachedConn struct {

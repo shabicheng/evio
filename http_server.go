@@ -30,6 +30,11 @@ type HttpRequest struct {
 	callMethod           string
 	parameterTypesString string
 	parameter            string
+
+	profileGetHttpTime   time.Time
+	profileSendAgentTime time.Time
+	profileGetAgentTime  time.Time
+	profileSendHttpTime  time.Time
 }
 
 var ParseFormBodyError = errors.New("ParseFormBodyError")
@@ -87,8 +92,9 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 			httpContext.req = &HttpRequest{}
 			httpContext.is.b = nil
 			httpContext.req.conn = c
+			httpContext.req.profileGetHttpTime = time.Now()
 			// handle the request
-			httpContext.req.remoteAddr = c.RemoteAddr().String()
+			//httpContext.req.remoteAddr = c.RemoteAddr().String()
 		}
 		data := httpContext.is.Begin(in)
 		// process the pipeline
@@ -112,20 +118,27 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 			//fmt.Print("##########req", *httpContext.req, httpContext.req.body, "\n")
 			err = httpContext.req.ParseFormBody()
 			if err != nil {
-				//logger.Info("parse form body error \n")
+				logger.Info("parse form body error \n")
 				out = AppendResp(out, "500 Error", "", err.Error()+"\n")
 				action = Close
 				break
 			}
+			// ****************************************
+			// ********* 直接在返回的结果中包含数据
 			//logger.Info("insert \n")
-			//AppendRequest(out, httpContext.req)
+			//out = AppendRequest(out, httpContext.req)
+			// ****************************************
+			// ********* 直接在这儿发送数据
+			//httpContext.req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
+			// ****************************************
 			workerQueue <- httpContext.req
 			httpContext.req = nil
 			httpContext.req = &HttpRequest{}
+			httpContext.req.profileGetHttpTime = time.Now()
 			httpContext.is.b = nil
 			httpContext.req.conn = c
 			// handle the request
-			httpContext.req.remoteAddr = c.RemoteAddr().String()
+			//httpContext.req.remoteAddr = c.RemoteAddr().String()
 			data = leftover
 		}
 		httpContext.is.End(data)
@@ -141,8 +154,7 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 // AppendRequest handles the incoming request and appends the response to
 // the provided bytes, which is then returned to the caller.
 func AppendRequest(b []byte, req *HttpRequest) []byte {
-	var res string
-	return AppendResp(b, "200 OK", "", res)
+	return AppendResp(b, "200 OK", "", "hello world")
 }
 
 var contentLengthHeaderLower = "content-length:"

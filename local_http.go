@@ -1,6 +1,8 @@
 package main
 
-import "github.com/shabicheng/evio/logger"
+import (
+	"github.com/shabicheng/evio/logger"
+)
 
 func LocalHttpServer(loops, port int) {
 
@@ -21,7 +23,11 @@ func LocalHttpServer(loops, port int) {
 					logger.Warning("forward request error", err)
 					req.conn.Send(AppendResp(nil, "500", err.Error(), "forward request error"))
 				}
+
+				// *********************************************
+				// ***************** 直接返回成功
 				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
+				// *********************************************
 
 			}
 		}()

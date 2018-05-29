@@ -8,8 +8,8 @@ func LocalAgentServer(loops, port int) {
 	for i := 0; i < loops; i++ {
 		go func() {
 			for req := range workerQueue {
-				//req.conn.Send(AppendResp(nil, "200", "", "Hello world."))
 				//logger.Info("get agent request id, detail %v", req.RequestID, *req)
+				//time.Sleep(time.Millisecond * 50)
 				//SendAgentRequest(req.conn, 200, req.RequestID, req.Interf, req.Method, req.ParamType, []byte("Hello World.!~"))
 				GlobalLocalDubboAgent.SendDubboRequest(req)
 			}
