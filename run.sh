@@ -1,4 +1,6 @@
 pkill evio
+go build
+rm -fr *.LOG
 sleep 0.1
 
 ./evio -dubbo-port=20887 -mode=p1 -provider-port=30000 &

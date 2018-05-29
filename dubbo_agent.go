@@ -13,7 +13,7 @@ import (
 
 var dubboPort = flag.Int("dubbo-port", 20889, "")
 var dubboHost = flag.String("dubbo-host", "127.0.0.1", "")
-var dubboConnCount = flag.Int("dubbo-conn", 4, "")
+var dubboConnCount = flag.Int("dubbo-conn", 2, "")
 
 var GlobalLocalDubboAgent LocalDubboAgent
 
@@ -144,9 +144,15 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 				}
 				//logger.Info("receive dubbo client's response, ", int(resp.ID), string(resp.Data))
 				agentReq.profileRemoteAgentGetDubboTime = time.Now()
-				SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, agentReq.Interf, agentReq.Method, agentReq.ParamType, resp.Data)
+				if true {
+					// 直接打包成http
+					SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, "", "", ParamType_Result, AppendResp(nil, "200 OK", "", string(resp.Data)))
+				} else {
+					SendAgentRequest(agentReq.conn, 200, agentReq.RequestID, agentReq.Interf, agentReq.Method, agentReq.ParamType, resp.Data)
+				}
 				GlobalLocalDubboAgent.requestMap.Delete(uint64(resp.ID))
 				agentReq.profileRemoteAgentSendAgentTime = time.Now()
+				ProfileLogger.Info(agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentGetTime), agentReq.profileRemoteAgentGetDubboTime.Sub(agentReq.profileRemoteAgentSendDubboTime), agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentSendDubboTime))
 			}
 		}()
 	}

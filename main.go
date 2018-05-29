@@ -5,10 +5,13 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	//_ "net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"runtime/pprof"
 	"time"
+
+	"github.com/cihub/seelog"
+	"github.com/shabicheng/evio/logger"
 )
 
 var localLoops = flag.Int("local-loop", 1, "local loop count")
@@ -18,6 +21,8 @@ var providerPort = flag.Int("provider-port", 30000, "provide agent listen port")
 var providerLoops = flag.Int("provider-loop", 1, "provide loop count")
 var defaultAgentCount = flag.Int("agent-count", 4, "default agent connection count")
 var profileDir = flag.String("profile-dir", "./", "profile dir, set to /root/logs/")
+
+var ProfileLogger seelog.LoggerInterface
 
 func DumpCpuInfo(seconds int) {
 	f, err := os.Create(*profileDir + *mode + "_cpuprof.prof")
@@ -34,7 +39,9 @@ func main() {
 
 	flag.Parse()
 
-	go DumpCpuInfo(60)
+	ProfileLogger = logger.GetProfileLogger(*mode, *profileDir)
+
+	//go DumpCpuInfo(60)
 	go func() {
 		if *mode == "consumer" {
 			log.Println(http.ListenAndServe("localhost:8088", nil))

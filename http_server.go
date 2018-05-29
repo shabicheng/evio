@@ -53,8 +53,12 @@ func (hq *HttpRequest) ParseFormBody() error {
 }
 
 func (hq *HttpRequest) Response(req *AgentRequest) error {
+	// 如果直接打包成了结果，那就直接发送出去
+	if req.ParamType == ParamType_Result {
+		return hq.conn.Send(req.Param)
+	}
 	out := AppendResp(nil, "200 OK", "", string(req.Param))
-	//logger.Info("HttpRequest", string(out))
+	logger.Info("Response HttpRequest", string(out))
 	return hq.conn.Send(out)
 }
 

@@ -33,6 +33,7 @@ const (
 	ParamType_Uint32
 	ParamType_String
 	ParamType_Obj
+	ParamType_Result
 )
 
 func (t ParamType) String() string {

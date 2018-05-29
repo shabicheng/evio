@@ -145,7 +145,7 @@ func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *H
 	}
 
 	httpReq.profileSendAgentTime = time.Now()
-	httpReq.profileGetAgentTime = agentReq.profileRemoteAgentGetTime
+	//httpReq.profileGetAgentTime = agentReq.profileRemoteAgentGetTime
 	return conn.(*RemoteAgent).SendRequest(agentReq, httpReq)
 }
 
@@ -203,8 +203,10 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 				}
 				//logger.Info("receive remote agent's response, ", string(resp.Param))
 				httpReq := obj.(*HttpRequest)
+				httpReq.profileGetAgentTime = time.Now()
 				httpReq.Response(resp)
 				httpReq.profileSendHttpTime = time.Now()
+				ProfileLogger.Info(httpReq.profileSendHttpTime.Sub(httpReq.profileGetHttpTime), httpReq.profileGetAgentTime.Sub(httpReq.profileSendAgentTime), httpReq.profileSendHttpTime.Sub(httpReq.profileSendAgentTime))
 				ctx.ra.requestMap.Delete(resp.RequestID)
 			}
 		}()

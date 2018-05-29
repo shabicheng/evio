@@ -25,6 +25,24 @@ var defaultConfig = `
 </seelog>
 `
 
+func GetProfileLogger(name string, dir string) seelog.LoggerInterface {
+	config := `
+	<seelog type="asynctimer" asyncinterval="100000" minlevel="info" >
+	 <outputs formatid="common">
+		 <rollingfile type="size" filename="%s%s-profile.LOG" maxsize="20971520" maxrolls="10"/>
+	 </outputs>
+	 <formats>
+		 <format id="common" format="%%Msg%%n" />
+	 </formats>
+	</seelog>
+	`
+	logger, err := seelog.LoggerFromConfigAsString(fmt.Sprintf(config, dir, name))
+	if err != nil {
+		return seelog.Disabled
+	}
+	return logger
+}
+
 func generateLog(kvPairs ...interface{}) string {
 	var logString = ""
 	pairLen := len(kvPairs) / 2
