@@ -92,17 +92,17 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 		}
 		httpContext := c.Context().(*HttpContext)
 
-		if httpContext.req == nil {
-			httpContext.req = &HttpRequest{}
-			httpContext.is.b = nil
-			httpContext.req.conn = c
-			httpContext.req.profileGetHttpTime = time.Now()
-			// handle the request
-			//httpContext.req.remoteAddr = c.RemoteAddr().String()
-		}
 		data := httpContext.is.Begin(in)
 		// process the pipeline
 		for {
+			if len(data) > 0 {
+				httpContext.req = &HttpRequest{}
+				httpContext.req.profileGetHttpTime = time.Now()
+				httpContext.is.b = nil
+				httpContext.req.conn = c
+			} else {
+				break
+			}
 			leftover, err, ready := parsereq(data, httpContext.req)
 			//logger.Info("result %v %v %v \n", leftover, err, ready)
 			if err != nil {
@@ -137,13 +137,9 @@ func ServeListenHttp(loops int, port int, workerQueue chan *HttpRequest) error {
 			// ****************************************
 			workerQueue <- httpContext.req
 			httpContext.req = nil
-			httpContext.req = &HttpRequest{}
-			httpContext.req.profileGetHttpTime = time.Now()
-			httpContext.is.b = nil
-			httpContext.req.conn = c
+			data = leftover
 			// handle the request
 			//httpContext.req.remoteAddr = c.RemoteAddr().String()
-			data = leftover
 		}
 		httpContext.is.End(data)
 		return

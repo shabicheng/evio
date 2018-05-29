@@ -124,7 +124,7 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 
 	lda.workerRespQueue = make(chan *DubboReponse, 1000)
 
-	for i := 0; i < 8; i++ {
+	for i := 0; i < *providerDubboProcessors; i++ {
 		go func() {
 			for resp := range lda.workerRespQueue {
 				//fmt.Printf("insert %v \n", *resp)

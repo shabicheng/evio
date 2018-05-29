@@ -14,13 +14,18 @@ import (
 	"github.com/shabicheng/evio/logger"
 )
 
-var localLoops = flag.Int("local-loop", 1, "local loop count")
+var localLoops = flag.Int("local-loop", 2, "local loop count")
 var localPort = flag.Int("local-port", 20000, "local loop count")
 var mode = flag.String("mode", "consumer", "mode")
 var providerPort = flag.Int("provider-port", 30000, "provide agent listen port")
-var providerLoops = flag.Int("provider-loop", 1, "provide loop count")
+var providerLoops = flag.Int("provider-loop", 2, "provide loop count")
 var defaultAgentCount = flag.Int("agent-count", 4, "default agent connection count")
 var profileDir = flag.String("profile-dir", "./", "profile dir, set to /root/logs/")
+
+var consumerHttpProcessors = flag.Int("consumer-http-processor", 8, "")
+var consumerAgentProcessors = flag.Int("consumer-agent-processor", 8, "")
+var providerAgentProcessors = flag.Int("provider-agent-processor", 8, "")
+var providerDubboProcessors = flag.Int("provider-dubbo-processor", 8, "")
 
 var ProfileLogger seelog.LoggerInterface
 
@@ -41,7 +46,7 @@ func main() {
 
 	ProfileLogger = logger.GetProfileLogger(*mode, *profileDir)
 
-	//go DumpCpuInfo(60)
+	go DumpCpuInfo(60)
 	go func() {
 		if *mode == "consumer" {
 			log.Println(http.ListenAndServe("localhost:8088", nil))

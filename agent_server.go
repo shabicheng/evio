@@ -110,17 +110,17 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 		}
 		agentContext := c.Context().(*AgentContext)
 
-		if agentContext.req == nil {
-			agentContext.req = &AgentRequest{}
-			agentContext.req.conn = c
-			agentContext.req.profileRemoteAgentGetTime = time.Now()
-			agentContext.is.b = nil
-			// handle the request
-			agentContext.req.RemoteAddr = c.RemoteAddr().String()
-		}
 		data := agentContext.is.Begin(in)
 		// process the pipeline
 		for {
+			if len(data) > 0 {
+				agentContext.req = &AgentRequest{}
+				agentContext.req.conn = c
+				agentContext.req.profileRemoteAgentGetTime = time.Now()
+				agentContext.is.b = nil
+				// handle the request
+				//agentContext.req.RemoteAddr = c.RemoteAddr().String()
+			}
 			//logger.Info("data %v\n", data)
 			leftover, err, ready := parseAgentReq(data, agentContext.req)
 			//logger.Info("result %v %v %v \n", leftover, err, ready)
@@ -137,12 +137,6 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 			//AppendRequest(out, httpContext.req)
 			workerQueue <- agentContext.req
 			agentContext.req = nil
-			agentContext.req = &AgentRequest{}
-			agentContext.req.profileRemoteAgentGetTime = time.Now()
-			agentContext.req.conn = c
-			agentContext.is.b = nil
-			// handle the request
-			agentContext.req.RemoteAddr = c.RemoteAddr().String()
 			data = leftover
 		}
 		agentContext.is.End(data)

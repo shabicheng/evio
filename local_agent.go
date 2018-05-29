@@ -5,7 +5,7 @@ package main
 
 func LocalAgentServer(loops, port int) {
 	workerQueue := make(chan *AgentRequest, 100)
-	for i := 0; i < loops; i++ {
+	for i := 0; i < *providerAgentProcessors; i++ {
 		go func() {
 			for req := range workerQueue {
 				//logger.Info("get agent request id, detail %v", req.RequestID, *req)

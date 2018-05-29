@@ -8,7 +8,7 @@ func LocalHttpServer(loops, port int) {
 
 	workerQueue := make(chan *HttpRequest, 100)
 
-	for i := 0; i < loops; i++ {
+	for i := 0; i < *consumerHttpProcessors; i++ {
 		go func() {
 			for req := range workerQueue {
 

@@ -192,7 +192,7 @@ func (ram *RemoteAgentManager) DeleteRemoteAgentConnection(conn Conn) {
 func (ram *RemoteAgentManager) ServeConnectAgent() error {
 	ram.workerRespQueue = make(chan *AgentRequest, 1000)
 
-	for i := 0; i < 8; i++ {
+	for i := 0; i < *consumerAgentProcessors; i++ {
 		go func() {
 			for resp := range ram.workerRespQueue {
 				ctx := resp.conn.Context().(*AgentContext)
