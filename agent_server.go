@@ -120,6 +120,8 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 				agentContext.is.b = nil
 				// handle the request
 				//agentContext.req.RemoteAddr = c.RemoteAddr().String()
+			} else {
+				break
 			}
 			//logger.Info("data %v\n", data)
 			leftover, err, ready := parseAgentReq(data, agentContext.req)

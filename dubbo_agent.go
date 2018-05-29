@@ -152,7 +152,10 @@ func (lda *LocalDubboAgent) ServeConnectDubbo(loops int) error {
 				}
 				GlobalLocalDubboAgent.requestMap.Delete(uint64(resp.ID))
 				agentReq.profileRemoteAgentSendAgentTime = time.Now()
-				ProfileLogger.Info(agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentGetTime), agentReq.profileRemoteAgentGetDubboTime.Sub(agentReq.profileRemoteAgentSendDubboTime), agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentSendDubboTime))
+				ProfileLogger.Info(agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentGetTime),
+					agentReq.profileRemoteAgentGetDubboTime.Sub(agentReq.profileRemoteAgentSendDubboTime),
+					agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentSendDubboTime),
+					agentReq.profileRemoteAgentSendAgentTime.Sub(agentReq.profileRemoteAgentGetTime)-agentReq.profileRemoteAgentGetDubboTime.Sub(agentReq.profileRemoteAgentSendDubboTime))
 			}
 		}()
 	}
