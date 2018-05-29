@@ -146,7 +146,7 @@ func CreateAgentEvent(loops int, workerQueue chan *AgentRequest) *Events {
 func ServeListenAgent(loops int, port int, workerQueue chan *AgentRequest) error {
 	events := CreateAgentEvent(loops, workerQueue)
 	// We at least want the single http address.
-	addrs := []string{fmt.Sprintf("tcp://:%d?reuseport=true", port)}
+	addrs := []string{fmt.Sprintf("tcp://0.0.0.0:%d?reuseport=true", port)}
 	// Start serving!
 	return Serve(*events, addrs...)
 }

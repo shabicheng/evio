@@ -307,8 +307,17 @@ func outConnect(s *server, addr string, port int, ctx interface{}) (Conn, error)
 	}
 
 	addrInet4 := syscall.SockaddrInet4{Port: port}
-	copy(addrInet4.Addr[:], net.ParseIP(addr).To4())
+	//ip := net.ParseIP(addr)
+	ips, err := net.LookupIP(addr)
+	var ip net.IP
+	if err != nil || len(ips) == 0 {
+		logger.Error("REMOTE_CONN_ERROR", "look ip error", err, "ips", len(ips))
+	} else {
+		ip = ips[0]
+	}
+	copy(addrInet4.Addr[:], ip.To4())
 	err = syscall.Connect(fd, &addrInet4)
+	logger.Info("connect to remote, addr", addr, "ip", ip.String(), "port", port, "err", err)
 	if err != nil {
 		//errno, ok := err.(syscall.Errno)
 		//if !ok || errno != syscall.EINPROGRESS {

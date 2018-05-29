@@ -133,7 +133,7 @@ func (ram *RemoteAgentManager) AddAgent(addr string, port int, interf string, de
 }
 
 func (ram *RemoteAgentManager) getInterfaceKey(interf string, port int) string {
-	return interf + util.GetIpAddress() + ":" + strconv.Itoa(port)
+	return interf + util.GetHostName() + ":" + strconv.Itoa(port)
 }
 
 func (ram *RemoteAgentManager) ForwardRequest(agentReq *AgentRequest, httpReq *HttpRequest) error {
@@ -161,7 +161,9 @@ func (ram *RemoteAgentManager) RegisterInterface(interf string, port int) {
 		log.Fatal(err)
 	}
 
-	_, err = cli.Put(context.TODO(), ram.getInterfaceKey(interf, port), "", etcd.WithLease(resp.ID))
+	interfaceKey := ram.getInterfaceKey(interf, port)
+	logger.Info("register interface to etcd", interfaceKey)
+	_, err = cli.Put(context.TODO(), interfaceKey, "", etcd.WithLease(resp.ID))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -230,8 +232,9 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 		log.Fatal(err)
 	} else {
 		for _, ev := range resp.Kvs {
+			logger.Info(fmt.Sprintf("etcd key events : ", ev.Key, string(ev.Key), string(ev.Value)))
 			keyTotal := string(ev.Key)
-			tail := keyTotal[strings.LastIndexByte(keyTotal, '/'):]
+			tail := keyTotal[strings.LastIndexByte(keyTotal, '/')+1:]
 			keyValuePairs := strings.Split(tail, ":")
 			addr := keyValuePairs[0]
 			port, _ := strconv.Atoi(keyValuePairs[1])
@@ -242,7 +245,7 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 	rch := c.Watch(context.Background(), interf, etcd.WithPrefix())
 	for wresp := range rch {
 		for _, ev := range wresp.Events {
-			logger.Info(fmt.Sprintf("etcd key events %s %q : %q\n", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
+			logger.Info(fmt.Sprintf("etcd key events %s %q : %q", ev.Type, string(ev.Kv.Key), string(ev.Kv.Value)))
 
 			switch ev.Type {
 			case mvccpb.PUT:
