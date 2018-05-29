@@ -250,7 +250,7 @@ func (ram *RemoteAgentManager) ListenInterface(interf string) {
 			switch ev.Type {
 			case mvccpb.PUT:
 				keyTotal := string(ev.Kv.Key)
-				tail := keyTotal[strings.LastIndexByte(keyTotal, '/'):]
+				tail := keyTotal[strings.LastIndexByte(keyTotal, '/')+1:]
 				keyValuePairs := strings.Split(tail, ":")
 				addr := keyValuePairs[0]
 				port, _ := strconv.Atoi(keyValuePairs[1])

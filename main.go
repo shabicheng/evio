@@ -17,9 +17,10 @@ var mode = flag.String("mode", "consumer", "mode")
 var providerPort = flag.Int("provider-port", 30000, "provide agent listen port")
 var providerLoops = flag.Int("provider-loop", 1, "provide loop count")
 var defaultAgentCount = flag.Int("agent-count", 4, "default agent connection count")
+var profileDir = flag.String("profile-dir", "./", "profile dir, set to /root/logs/")
 
 func DumpCpuInfo(seconds int) {
-	f, err := os.Create(*mode + "_cpuprof.prof")
+	f, err := os.Create(*profileDir + *mode + "_cpuprof.prof")
 	if err != nil {
 		return
 	}
