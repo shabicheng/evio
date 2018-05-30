@@ -53,7 +53,7 @@ func (c *conn) Send(data []byte) error {
 	if c.out != nil {
 		c.out = append(c.out, data...)
 		c.outLock.Unlock()
-		//fmt.Print("?????\n")
+		logger.Info("send bloacked", c.localAddr, c.remoteAddr, c.loopidx, string(c.out))
 	}
 	c.outLock.Unlock()
 

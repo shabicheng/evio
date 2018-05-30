@@ -14,18 +14,23 @@ import (
 	"github.com/shabicheng/evio/logger"
 )
 
-var localLoops = flag.Int("local-loop", 2, "local loop count")
 var localPort = flag.Int("local-port", 20000, "local loop count")
 var mode = flag.String("mode", "consumer", "mode")
 var providerPort = flag.Int("provider-port", 30000, "provide agent listen port")
-var providerLoops = flag.Int("provider-loop", 2, "provide loop count")
 var defaultAgentCount = flag.Int("agent-count", 4, "default agent connection count")
 var profileDir = flag.String("profile-dir", "./", "profile dir, set to /root/logs/")
 
-var consumerHttpProcessors = flag.Int("consumer-http-processor", 8, "")
-var consumerAgentProcessors = flag.Int("consumer-agent-processor", 8, "")
-var providerAgentProcessors = flag.Int("provider-agent-processor", 8, "")
-var providerDubboProcessors = flag.Int("provider-dubbo-processor", 8, "")
+// loop 设置
+var consumerHttpLoops = flag.Int("consumer-http-loop", 2, "")
+var consumerAgentLoops = flag.Int("consumer-agent-loop", 1, "")
+var providerAgentLoops = flag.Int("provider-agent-loop", 1, "")
+var providerDubboLoops = flag.Int("provider-dubbo-loop", 2, "")
+
+// processor 设置
+var consumerHttpProcessors = flag.Int("consumer-http-processor", 4, "")
+var consumerAgentProcessors = flag.Int("consumer-agent-processor", 4, "")
+var providerAgentProcessors = flag.Int("provider-agent-processor", 4, "")
+var providerDubboProcessors = flag.Int("provider-dubbo-processor", 4, "")
 
 var ProfileLogger seelog.LoggerInterface
 
@@ -56,42 +61,18 @@ func main() {
 	}()
 
 	if *mode == "consumer" {
-		GlobalRemoteAgentManager.ServeConnectAgent()
+		GlobalRemoteAgentManager.ServeConnectAgent(*consumerAgentLoops)
 		go GlobalRemoteAgentManager.ListenInterface(GlobalInterface)
-
-		// time.Sleep(time.Second)
-		// req := &HttpRequest{
-		// 	callMethod: "hash",
-		// 	parameter:  "xxxxxxxxxxx",
-		// }
-
-		// agentReq := &AgentRequest{
-		// 	Interf:    "com.alibaba.dubbo.performance.demo.provider.IHelloService",
-		//              com.alibaba.dubbo.performance.demo.provider.IHelloService
-		// 	Method:    req.callMethod,
-		// 	ParamType: ParamType_String,
-		// 	Param:     []byte(req.parameter),
-		// }
-
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// time.Sleep(time.Second)
-
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
-		// GlobalRemoteAgentManager.ForwardRequest(agentReq, req)
 
 		time.Sleep(time.Second)
 
-		LocalHttpServer(*localLoops, *localPort)
+		LocalHttpServer(*consumerHttpLoops, *localPort)
 	} else {
 
-		GlobalLocalDubboAgent.ServeConnectDubbo(4)
+		GlobalLocalDubboAgent.ServeConnectDubbo(*providerDubboLoops)
 		time.Sleep(time.Second)
 		go GlobalRemoteAgentManager.RegisterInterface(GlobalInterface, *providerPort)
 
-		LocalAgentServer(*providerLoops, *providerPort)
+		LocalAgentServer(*providerAgentLoops, *providerPort)
 	}
 }

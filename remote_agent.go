@@ -189,7 +189,7 @@ func (ram *RemoteAgentManager) DeleteRemoteAgentConnection(conn Conn) {
 	logger.Info("ServeConnectAgent agent closed", conn.LocalAddr(), conn.RemoteAddr(), "deleted count", deletedCount, "now count", agentCtx.ra.connManager.GetConnectionCount())
 }
 
-func (ram *RemoteAgentManager) ServeConnectAgent() error {
+func (ram *RemoteAgentManager) ServeConnectAgent(loops int) error {
 	ram.workerRespQueue = make(chan *AgentRequest, 1000)
 
 	for i := 0; i < *consumerAgentProcessors; i++ {
@@ -215,7 +215,7 @@ func (ram *RemoteAgentManager) ServeConnectAgent() error {
 		}()
 	}
 
-	events := CreateAgentEvent(4, ram.workerRespQueue)
+	events := CreateAgentEvent(loops, ram.workerRespQueue)
 	events.Closed = func(c Conn, err error) (action Action) {
 		ram.DeleteRemoteAgentConnection(c)
 
